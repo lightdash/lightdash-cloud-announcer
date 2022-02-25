@@ -1,0 +1,12 @@
+{
+  "name": "lightdash-cloud-announcer",
+  "version": "1.0.0",
+  "description": "Announces on Lightdash Cloud slack",
+  "main": "index.js",
+  "author": "Lightdash",
+  "license": "MIT",
+  "dependencies": {
+    "@rudderstack/rudder-sdk-node": "^1.0.14",
+    "@slack/bolt": "^3.9.0"
+  }
+}
