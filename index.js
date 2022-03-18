@@ -34,8 +34,7 @@ app.message(/.*/g, async ({message, say, logger}) => {
     }
 });
 
-app.command('/broadcastcloudmessage', async ({command, ack, respond}) => {    //Ignore the :any if you're not using Typescript
-    console.log('/broadcastcloudmessage', command)
+app.command('/broadcastcloudmessage', async ({command, ack, respond}) => {
     await ack();
     if (command.channel_id === CLOUD_ANNOUNCER_CHANNEL_ID) {
         analyticsClient.track({
