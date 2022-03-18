@@ -20,7 +20,7 @@ app.message(/.*/g, async ({message, say, logger}) => {
             analyticsClient.track({
                 event: 'slack.message.sent',
                 userId: message.user,
-                properties: message,
+                properties: {...message, channelId: message.channel},
             });
             const isWeekend = new Date(message.ts).getDay() % 6 === 0;
             const messageHours = new Date(message.ts).getUTCHours();
