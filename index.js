@@ -23,8 +23,8 @@ app.message(/.*/g, async ({message, say, logger}) => {
                 properties: {...message, channelId: message.channel},
             });
             const isWeekend = new Date(message.ts).getDay() % 6 === 0;
-            const messageHours = new Date(message.ts).getUTCHours();
-            const isOutOfHours = messageHours < 8 || messageHours > 17;
+            const messageHours = new Date(parseInt(message.ts.split('.')[0]) * 1000).getUTCHours();
+            const isOutOfHours = messageHours < 8 || messageHours >= 17;
             if (isWeekend || isOutOfHours) {
                 await say(`Hey there <@${message.user}> :wave: The Lightdash team might not be available right now. We will reply as soon as we get back online`);
             }
