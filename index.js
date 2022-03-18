@@ -19,13 +19,11 @@ app.message(/.*/g, async ({message, say, logger}) => {
         analyticsClient.track({
             event: 'slack.message.sent',
             userId: message.user,
-            channelId: message.channel,
-            channelType: message.channel_type,
             properties: message,
         });
         const isWeekend = new Date(message.ts).getDay() % 6 === 0;
         const messageHours = new Date(message.ts).getUTCHours();
-        const isOutOfHours = true || messageHours < 8 || messageHours > 17;
+        const isOutOfHours = messageHours < 8 || messageHours > 17;
         if (isWeekend || isOutOfHours) {
             await say(`Hey there <@${message.user}> :wave: The Lightdash team might not be available right now. We will reply as soon as we get back online`);
         }
@@ -41,8 +39,7 @@ app.command('/broadcastcloudmessage', async ({command, ack, respond}) => {    //
         analyticsClient.track({
             event: 'dashi.broadcast.sent',
             userId: command.user_id,
-            username: command.user_name,
-            command,
+            properties: command,
         });
         await respond(`I'm broadcasting your message. *_woof_ _woof_*`);
 
