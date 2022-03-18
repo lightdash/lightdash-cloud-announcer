@@ -16,7 +16,7 @@ const app = new App({
 
 app.message(/.*/g, async ({message, say, logger}) => {
     try {
-        if (command.channel_id !== CLOUD_ANNOUNCER_CHANNEL_ID) {
+        if (message.channel_id !== CLOUD_ANNOUNCER_CHANNEL_ID) {
             analyticsClient.track({
                 event: 'slack.message.sent',
                 userId: message.user,
@@ -30,7 +30,7 @@ app.message(/.*/g, async ({message, say, logger}) => {
             }
         }
     } catch (e) {
-        logger(e);
+        console.log(e);
     }
 });
 
