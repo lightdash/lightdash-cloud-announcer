@@ -69,6 +69,41 @@ app.command('/previewbroadcastcloudmessage', async ({command, say, ack, respond}
     }
 });
 
+const blockedChannels = {};
+
+app.command('/markblocked', async ({command, say, ack, respond}) => {    //Ignore the :any if you're not using Typescript
+    await ack();
+    if (command.channel_id !== CLOUD_ANNOUNCER_CHANNEL_ID) {
+        blockedChannels[command.channel_id] = command;
+        await respond(`Channel *${command.channel_name}* has been marked as blocked`);
+    } else {
+        await respond(`This command is not available in this channel`);
+    }
+});
+
+app.command('/markunblocked', async ({command, say, ack, respond}) => {    //Ignore the :any if you're not using Typescript
+    await ack();
+    if (command.channel_id !== CLOUD_ANNOUNCER_CHANNEL_ID) {
+        delete blockedChannels[command.channel_id];
+        await respond(`Channel *${command.channel_name}* has been removed as blocked`);
+    } else {
+        await respond(`This command is not available in this channel`);
+    }
+});
+
+app.command('/listblocked', async ({command, say, ack, respond}) => {    //Ignore the :any if you're not using Typescript
+    await ack();
+    if (command.channel_id === CLOUD_ANNOUNCER_CHANNEL_ID) {
+        if (Object.values(blockedChannels).length <= 0) {
+            await respond(`No blocked users`);
+        } else {
+            await respond(`Blocked channels:\n ${Object.values(blockedChannels).map(blockedCommand => `<#${blockedCommand.channel_id}>`).join('\n')}`);
+        }
+    } else {
+        await respond(`This command is not available in this channel`);
+    }
+});
+
 (async () => {
     await app.start(3001)
     console.log('Bolt app running on localhost:3001')
