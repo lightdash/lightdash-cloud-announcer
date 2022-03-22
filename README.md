@@ -1,4 +1,6 @@
-Uploading Dashy-bot.mov…
+
+https://user-images.githubusercontent.com/31137824/159495708-fc6b5ea9-b167-4cd1-9740-694bf2bb2fe1.mov
+
 
 # Dashy - Lightdash little helper
 
