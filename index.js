@@ -26,7 +26,7 @@ app.message(/.*/g, async ({ message, say, logger }) => {
       const messageHours = new Date(
         parseInt(message.ts.split(".")[0]) * 1000
       ).getUTCHours();
-      const isOutOfHours = true || messageHours < 8 || messageHours >= 17;
+      const isOutOfHours = messageHours < 8 || messageHours >= 17;
       const isCloudAnnouncer = message.channel === CLOUD_ANNOUNCER_CHANNEL_ID;
 
       if ((isWeekend || isOutOfHours) && !isCloudAnnouncer) {
