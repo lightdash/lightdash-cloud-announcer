@@ -15,6 +15,13 @@ const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
 });
 
+const userMessagedAt = {};
+
+const getDifferenceInHours = (date1, date2) => {
+  const diffInMins = Math.abs(date2 - date1);
+  return diffInMins / 1000;
+};
+
 app.message(/.*/g, async ({ message, say, logger }) => {
   try {
     if (message.channel_id !== CLOUD_ANNOUNCER_CHANNEL_ID) {
@@ -27,22 +34,22 @@ app.message(/.*/g, async ({ message, say, logger }) => {
       const messageHours = new Date(
         parseInt(message.ts.split(".")[0]) * 1000
       ).getUTCHours();
-      const isOutOfHours = true || messageHours < 8 || messageHours >= 17;
+      const isOutOfHours = messageHours < 8 || messageHours >= 17;
       const isCloudAnnouncer = message.channel === CLOUD_ANNOUNCER_CHANNEL_ID;
 
-      const userMessagedAt = {};
-      const getDifferenceInHours = (date1, date2) => {
-        const diffInMins = Math.abs(date2 - date1);
-        return diffInMins / (1000 * 60 * 60);
-      };
-      const alreadyMessagedUser =
-        getDifferenceInHours(userMessagedAt[userId], new Date()) > 1;
-
       if ((isWeekend || isOutOfHours) && !isCloudAnnouncer) {
-        await say(
-          `Hey there <@${message.user}> :wave: The Lightdash team might not be available right now. We will reply as soon as we get back online`
-        );
-        userMessagedAt[message.userId] = new Date();
+        const alreadyMessagedUser =
+          getDifferenceInHours(
+            userMessagedAt[message.user],
+            new Date() / 1000
+          ) > 0;
+
+        if (!alreadyMessagedUser) {
+          await say(
+            `Hey there <@${message.user}> :wave: The Lightdash team might not be available right now. We will reply as soon as we get back online`
+          );
+          userMessagedAt[message.user] = new Date() / 1000;
+        } else null;
       }
     }
   } catch (e) {
