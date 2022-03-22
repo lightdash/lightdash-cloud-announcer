@@ -50,9 +50,9 @@ app.command("/broadcastcloudmessage", async ({ command, ack, respond }) => {
       properties: command,
     });
     await respond(`I'm broadcasting your message. *_woof_ _woof_*`);
-    
+
     const conversations = await app.client.users.conversations();
-    
+
     conversations.channels.forEach((channel) => {
       if (
         channel.id !== CLOUD_ANNOUNCER_CHANNEL_ID &&
