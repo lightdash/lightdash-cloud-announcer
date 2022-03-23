@@ -3,6 +3,7 @@ const { App } = require("@slack/bolt");
 const Analytics = require("@rudderstack/rudder-sdk-node");
 
 const CLOUD_ANNOUNCER_CHANNEL_ID = "C037H6ZCSK0";
+const INFOSEC_CHANNEL_ID = "C01E70SB33M";
 
 const analyticsClient = new Analytics(
   process.env.RUDDERSTACK_WRITE_KEY,
@@ -53,7 +54,10 @@ app.command("/broadcastcloudmessage", async ({ command, ack, respond }) => {
     const conversations = await app.client.users.conversations();
 
     conversations.channels.forEach((channel) => {
-      if (channel.id !== CLOUD_ANNOUNCER_CHANNEL_ID) {
+      if (
+        channel.id !== CLOUD_ANNOUNCER_CHANNEL_ID &&
+        channel.id !== INFOSEC_CHANNEL_ID
+      ) {
         app.client.chat.postMessage({
           channel: channel.id,
           text: command.text,
