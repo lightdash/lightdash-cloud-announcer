@@ -18,8 +18,8 @@ const app = new App({
 const userMessagedAt = {};
 
 const getDifferenceInHours = (date1, date2) => {
-  const diffInMins = Math.abs(date2 - date1);
-  return diffInMins / 1000;
+  const diffInSeconds = Math.abs(date2 - date1);
+  return diffInSeconds / 3600;
 };
 
 app.message(/.*/g, async ({ message, say, logger }) => {
@@ -42,7 +42,7 @@ app.message(/.*/g, async ({ message, say, logger }) => {
           getDifferenceInHours(
             userMessagedAt[message.user],
             new Date() / 1000
-          ) > 0;
+          ) > 1;
 
         if (!alreadyMessagedUser) {
           await say(
