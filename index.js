@@ -15,47 +15,51 @@ const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
 });
 
-const userMessagedAt = {};
+/***************************************
+ * Commented out of hours message
+ * to be activated later on
+ ***************************************/
+// const userMessagedAt = {};
 
-const getDifferenceInHours = (date1, date2) => {
-  const diffInSeconds = Math.abs(date2 - date1);
-  return diffInSeconds / 3600;
-};
+// const getDifferenceInHours = (date1, date2) => {
+//   const diffInSeconds = Math.abs(date2 - date1);
+//   return diffInSeconds / 3600;
+// };
 
-app.message(/.*/g, async ({ message, say, logger }) => {
-  try {
-    if (message.channel_id !== CLOUD_ANNOUNCER_CHANNEL_ID) {
-      analyticsClient.track({
-        event: "slack.message.sent",
-        userId: message.user,
-        properties: { ...message, channelId: message.channel },
-      });
-      const isWeekend = new Date(message.ts).getDay() % 6 === 0;
-      const messageHours = new Date(
-        parseInt(message.ts.split(".")[0]) * 1000
-      ).getUTCHours();
-      const isOutOfHours = messageHours < 8 || messageHours >= 17;
-      const isCloudAnnouncer = message.channel === CLOUD_ANNOUNCER_CHANNEL_ID;
+// app.message(/.*/g, async ({ message, say, logger }) => {
+//   try {
+//     if (message.channel_id !== CLOUD_ANNOUNCER_CHANNEL_ID) {
+//       analyticsClient.track({
+//         event: "slack.message.sent",
+//         userId: message.user,
+//         properties: { ...message, channelId: message.channel },
+//       });
+//       const isWeekend = new Date(message.ts).getDay() % 6 === 0;
+//       const messageHours = new Date(
+//         parseInt(message.ts.split(".")[0]) * 1000
+//       ).getUTCHours();
+//       const isOutOfHours = messageHours < 8 || messageHours >= 17;
+//       const isCloudAnnouncer = message.channel === CLOUD_ANNOUNCER_CHANNEL_ID;
 
-      if ((isWeekend || isOutOfHours) && !isCloudAnnouncer) {
-        const alreadyMessagedUser =
-          getDifferenceInHours(
-            userMessagedAt[message.user],
-            new Date() / 1000
-          ) > 1;
+//       if ((isWeekend || isOutOfHours) && !isCloudAnnouncer) {
+//         const alreadyMessagedUser =
+//           getDifferenceInHours(
+//             userMessagedAt[message.user],
+//             new Date() / 1000
+//           ) > 1;
 
-        if (!alreadyMessagedUser) {
-          await say(
-            `Hey there <@${message.user}> :wave: The Lightdash team might not be available right now. We will reply as soon as we get back online`
-          );
-          userMessagedAt[message.user] = new Date() / 1000;
-        } else null;
-      }
-    }
-  } catch (e) {
-    console.log(e);
-  }
-});
+//         if (!alreadyMessagedUser) {
+//           await say(
+//             `Hey there <@${message.user}> :wave: The Lightdash team might not be available right now. We will reply as soon as we get back online`
+//           );
+//           userMessagedAt[message.user] = new Date() / 1000;
+//         } else null;
+//       }
+//     }
+//   } catch (e) {
+//     console.log(e);
+//   }
+// });
 
 app.command("/broadcastcloudmessage", async ({ command, ack, respond }) => {
   await ack();
