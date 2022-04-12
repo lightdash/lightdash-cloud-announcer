@@ -113,7 +113,7 @@ app.command("/markblocked", async ({ command, say, ack, respond }) => {
   if (command.channel_id !== CLOUD_ANNOUNCER_CHANNEL_ID) {
     blockedChannels[command.channel_id] = command;
     await respond(
-      `Channel *${command.channel_name}* has been marked as blocked`
+      `Channel *${command.channel_name}* has been marked as blocked 🛠`
     );
   } else {
     await respond(`This command is not available in this channel`);
@@ -126,7 +126,7 @@ app.command("/markunblocked", async ({ command, say, ack, respond }) => {
   if (command.channel_id !== CLOUD_ANNOUNCER_CHANNEL_ID) {
     delete blockedChannels[command.channel_id];
     await respond(
-      `Channel *${command.channel_name}* has been removed as blocked`
+      `Yay! *${command.channel_name}* has been unblocked 🎉`
     );
   } else {
     await respond(`This command is not available in this channel`);
