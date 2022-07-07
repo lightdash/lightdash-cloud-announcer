@@ -2,6 +2,7 @@ services:
   - type: web
     name: dashy
     env: node
+    buildCommand: yarn install
     startCommand: yarn start
     repo: https://github.com/lightdash/lightdash-cloud-announcer.git
     region: frankfurt
