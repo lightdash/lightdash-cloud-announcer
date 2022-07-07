@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: dashy
+    name: cloudy-server
     env: node
     buildCommand: yarn install
     startCommand: yarn start
@@ -26,7 +26,7 @@ services:
         sync: false
 
 databases:
-  - name: dashy-db
+  - name: cloudy-db
     region: oregon
     ipAllowList: []
 
