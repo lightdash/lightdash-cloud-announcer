@@ -1,0 +1,36 @@
+display_information:
+  name: "[dev] Cloudy"
+  description: Cloudy - our community helpbot
+  background_color: "#7262ff"
+features:
+  bot_user:
+    display_name: "[dev] Cloudy"
+    always_online: true
+  shortcuts:
+    - name: Link issue
+      type: message
+      callback_id: link_issue
+      description: Link a github issue to this thread
+oauth_config:
+  scopes:
+    bot:
+      - app_mentions:read
+      - channels:history
+      - channels:read
+      - chat:write
+      - users.profile:read
+      - users:read
+      - users:read.email
+      - commands
+settings:
+  event_subscriptions:
+    request_url: https://8ffa-31-52-112-166.ngrok.io/slack/events
+    bot_events:
+      - app_mention
+      - message.channels
+  interactivity:
+    is_enabled: true
+    request_url: https://8ffa-31-52-112-166.ngrok.io/slack/events
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
