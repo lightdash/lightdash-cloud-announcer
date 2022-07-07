@@ -61,6 +61,11 @@ const app = new App({
 //   }
 // });
 
+app.command("/link-issue", async ({command, ack, respond}) => {
+  await ack()
+  await respond(`Yo m8`)
+})
+
 app.command("/broadcastcloudmessage", async ({ command, ack, respond }) => {
   await ack();
   if (command.channel_id === CLOUD_ANNOUNCER_CHANNEL_ID) {
