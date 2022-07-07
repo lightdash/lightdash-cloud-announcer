@@ -12,7 +12,7 @@ services:
     envVars:
       - key: PG_CONNECTION_STRING
         fromDatabase:
-          name: dashy-db
+          name: cloudy-db
           property: connectionString
       - key: SLACK_SIGNING_SECRET
         sync: false
