@@ -1,7 +1,7 @@
 display_information:
   name: "[dev] Cloudy"
   description: Cloudy - our community helpbot
-  background_color: "#7262ff"
+  background_color: "#000000"
 features:
   bot_user:
     display_name: "[dev] Cloudy"
