@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: dashy
+    env: node
+    repo: https:/github.com/lightdash/lightdash-cloud-announcer.git
+    region: frankfurt
+    plan: standard
+    branch: main
+    healthCheckPath: /healthz
+    envVars:
+      - key: PG_CONNECTION_STRING
+        fromDatabase:
+          name: dashy-db
+          property: connectionString
+      - key: SLACK_SIGNING_SECRET
+        sync: false
+      - key: SLACK_BOT_TOKEN
+        sync: false
+      - key: RUDDERSTACK_WRITE_KEY
+        sync: false
+      - key: RUDDERSTACK_DATAPLANE_URL
+        value: https://analytics.lightdash.com
+      - key: GITHUB_WEBHOOKS_SECRET
+        sync: false
+
+databases:
+  - name: dashy-db
+    ipAllowList: []
+
+
