@@ -1,10 +1,8 @@
+# Cloudy - our community helpbot
 
-https://user-images.githubusercontent.com/31137824/159495708-fc6b5ea9-b167-4cd1-9740-694bf2bb2fe1.mov
+Cloudy is deployed to prod automatically on push to `main` at https://cloudy-server.onrender.com
 
-
-# Dashy - Lightdash little helper
-
-You can run and update our Dashy Slack bot following the next steps.
+You can develop Cloudy locally by following these steps:
 
 ## Getting started
 
@@ -14,12 +12,20 @@ git clone https://github.com/lightdash/lightdash-cloud-announcer.git
 
 ```
 
+### Setup dev environment
+
+1. Run `yarn expose` to get a url you can share with slack + github.
+2. [Create a new slack](https://api.slack.com/apps) app in a workspace. Use the `slack-app-manifest.yml` but replace the urls with the one from step 1
+3. [Create a new webhook in github](https://github.com/organizations/lightdash/settings/hooks) on our organization page: 
+
 ### Make sure you create and set an `.env` file correctly.
 
 
 <p>SLACK_SIGNING_SECRET=<a href="https://api.slack.com/apps/A033CLM638C/general?">Find the Signing secret in the app credentials section of this page</a></p>
 
 SLACK_BOT_TOKEN=[Retrieve your token here](https://api.slack.com/apps/A033CLM638C/oauth)
+
+GITHUB_WEBHOOKS_SECRET=[Create a new webhook with a secret](https://github.com/organizations/lightdash/settings/hooks)
 
 RUDDERSTACK_WRITE_KEY=[Get your Rudderstack write key here](https://app.rudderstack.com/)
 
@@ -35,7 +41,7 @@ yarn
 # Run the app locally
 yarn start
 
-# Open another terminal window and Run ngrok
+# (you may have already done this) open another terminal window and Run ngrok
 yarn expose
 ```
 
