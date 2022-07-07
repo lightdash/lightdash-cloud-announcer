@@ -1,158 +1,85 @@
-require("dotenv").config();
-const { App } = require("@slack/bolt");
-const Analytics = require("@rudderstack/rudder-sdk-node");
+import bolt from '@slack/bolt';
+import Analytics from '@rudderstack/rudder-sdk-node';
+import {createGithubIssueSlackThread, getSlackThreads} from "./db.js";
+const { App, ExpressReceiver } = bolt;
+import octokit from '@octokit/webhooks';
+const { Webhooks, createNodeMiddleware } = octokit;
 
-const CLOUD_ANNOUNCER_CHANNEL_ID = "C037H6ZCSK0";
-const INFOSEC_CHANNEL_ID = "C01E70SB33M";
+const githubWebhooks = new Webhooks({secret: process.env.GITHUB_WEBHOOKS_SECRET})
 
 const analyticsClient = new Analytics(
   process.env.RUDDERSTACK_WRITE_KEY,
   `${process.env.RUDDERSTACK_DATA_PLANE_URL}/v1/batch`
 );
 
+const expressReceiver = new ExpressReceiver({ signingSecret: process.env.SLACK_SIGNING_SECRET })
 const app = new App({
-  signingSecret: process.env.SLACK_SIGNING_SECRET,
   token: process.env.SLACK_BOT_TOKEN,
+  receiver: expressReceiver,
 });
 
-/***************************************
- * Commented out of hours message
- * to be activated later on
- ***************************************/
-// const userMessagedAt = {};
+const renderIssueRef = (issueUrl) => {
+  const issueId = issueUrl.split('/').pop();
+  return `<${issueUrl}|issue #${issueId}>`;
+}
 
-// const getDifferenceInHours = (date1, date2) => {
-//   const diffInSeconds = Math.abs(date2 - date1);
-//   return diffInSeconds / 3600;
-// };
-
-// app.message(/.*/g, async ({ message, say, logger }) => {
-//   try {
-//     if (message.channel_id !== CLOUD_ANNOUNCER_CHANNEL_ID) {
-//       analyticsClient.track({
-//         event: "slack.message.sent",
-//         userId: message.user,
-//         properties: { ...message, channelId: message.channel },
-//       });
-//       const isWeekend = new Date(message.ts).getDay() % 6 === 0;
-//       const messageHours = new Date(
-//         parseInt(message.ts.split(".")[0]) * 1000
-//       ).getUTCHours();
-//       const isOutOfHours = messageHours < 8 || messageHours >= 17;
-//       const isCloudAnnouncer = message.channel === CLOUD_ANNOUNCER_CHANNEL_ID;
-
-//       if ((isWeekend || isOutOfHours) && !isCloudAnnouncer) {
-//         const alreadyMessagedUser =
-//           getDifferenceInHours(
-//             userMessagedAt[message.user],
-//             new Date() / 1000
-//           ) > 1;
-
-//         if (!alreadyMessagedUser) {
-//           await say(
-//             `Hey there <@${message.user}> :wave: The Lightdash team might not be available right now. We will reply as soon as we get back online`
-//           );
-//           userMessagedAt[message.user] = new Date() / 1000;
-//         } else null;
-//       }
-//     }
-//   } catch (e) {
-//     console.log(e);
-//   }
-// });
-
-app.command("/link-issue", async ({command, ack, respond}) => {
-  await ack()
-  await respond(`Yo m8`)
+githubWebhooks.on('issues.assigned', async ({ payload}) => {
+  const issueUrl = payload.issue.html_url;
+  const slack_threads = await getSlackThreads(issueUrl);
+  for await (const slack_thread of slack_threads) {
+    await app.client.chat.postMessage({
+      text: `🥳 <${payload.issue.assignee.html_url}|${payload.issue.assignee.login}> has started work on ${renderIssueRef(issueUrl)}!`,
+      channel: slack_thread.channel_id,
+      thread_ts: slack_thread.slack_thread_ts,
+      unfurl_links: false,
+      unfurl_media: false,
+    })
+  }
 })
 
-app.command("/broadcastcloudmessage", async ({ command, ack, respond }) => {
+githubWebhooks.on('issues.closed', async({ payload }) => {
+  const issueUrl = payload.issue.html_url;
+  const slack_threads = await getSlackThreads(issueUrl);
+  for await (const slack_thread of slack_threads) {
+    await app.client.chat.postMessage({
+      text: `✅ We've fixed ${renderIssueRef(issueUrl)}: _${payload.issue.title}_\n\nA member of the team will be in touch to help you get the latest fix 🎉`,
+      channel: slack_thread.channel_id,
+      thread_ts: slack_thread.slack_thread_ts,
+      unfurl_links: false,
+      unfurl_media: false,
+    })
+  }
+})
+
+app.shortcut('link_issue', async ({shortcut, ack, client, logger, say}) => {
   await ack();
-  if (command.channel_id === CLOUD_ANNOUNCER_CHANNEL_ID) {
-    analyticsClient.track({
-      event: "dashy.broadcast.sent",
-      userId: command.user_id,
-      properties: command,
-    });
-    await respond(`I'm broadcasting your message. *_woof_ _woof_*`);
-
-    const conversations = await app.client.users.conversations();
-
-    conversations.channels.forEach((channel) => {
-      if (
-        channel.id !== CLOUD_ANNOUNCER_CHANNEL_ID &&
-        channel.id !== INFOSEC_CHANNEL_ID
-      ) {
-        app.client.chat.postMessage({
-          channel: channel.id,
-          text: command.text,
-        });
+  const links = shortcut.message.blocks.flatMap(b => b.elements).flatMap(a => a.elements).filter(e => e.type === 'link').map(l => l.url);
+  const githubLinkRegex = /https:\/\/github.com\/[^\/]+\/[^\/]+\/issues\/[0-9]+/
+  const githubLinks = links.filter(url =>githubLinkRegex.exec(url));
+  const [firstGithubLink] = githubLinks;
+  const threadTs = shortcut.message.thread_ts || shortcut.message_ts;
+  const channelId = shortcut.channel.id;
+  if (firstGithubLink) {
+    try {
+      await createGithubIssueSlackThread(firstGithubLink, channelId, threadTs);
+    }
+    catch (e) {
+      if ((e.constraint && e.constraint === 'github_issue_slack_threads_pkey')) {
+        // do nothing we already subscribed
       }
+      else {
+        throw e;
+      }
+    }
+    await say({
+      text: `I'm keeping an eye on ${renderIssueRef(firstGithubLink)}\n\nI'll notify everyone here as soon as it's fixed!`,
+      thread_ts: threadTs,
+      unfurl_links: false,
+      unfurl_media: false
     });
-  } else {
-    await respond(`This command is not available in this channel`);
   }
-});
-
-app.command(
-  "/previewbroadcastcloudmessage",
-  async ({ command, say, ack, respond }) => {
-    //Ignore the :any if you're not using Typescript
-    await ack();
-    if (command.channel_id === CLOUD_ANNOUNCER_CHANNEL_ID) {
-      await say(
-        `Preview *${command.user_name}'s* broadcast message:\n ======================================`
-      );
-      await say(command.text);
-    } else {
-      await respond(`This command is not available in this channel`);
-    }
-  }
-);
-
-const blockedChannels = {};
-
-app.command("/markblocked", async ({ command, say, ack, respond }) => {
-  //Ignore the :any if you're not using Typescript
-  await ack();
-  if (command.channel_id !== CLOUD_ANNOUNCER_CHANNEL_ID) {
-    blockedChannels[command.channel_id] = command;
-    await respond(
-      `Channel *${command.channel_name}* has been marked as blocked 🛠`
-    );
-  } else {
-    await respond(`This command is not available in this channel`);
-  }
-});
-
-app.command("/markunblocked", async ({ command, say, ack, respond }) => {
-  //Ignore the :any if you're not using Typescript
-  await ack();
-  if (command.channel_id !== CLOUD_ANNOUNCER_CHANNEL_ID) {
-    delete blockedChannels[command.channel_id];
-    await respond(
-      `Yay! *${command.channel_name}* has been unblocked 🎉`
-    );
-  } else {
-    await respond(`This command is not available in this channel`);
-  }
-});
-
-app.command("/listblocked", async ({ command, say, ack, respond }) => {
-  //Ignore the :any if you're not using Typescript
-  await ack();
-  if (command.channel_id === CLOUD_ANNOUNCER_CHANNEL_ID) {
-    if (Object.values(blockedChannels).length <= 0) {
-      await respond(`No blocked users`);
-    } else {
-      await respond(
-        `Blocked channels:\n ${Object.values(blockedChannels)
-          .map((blockedCommand) => `<#${blockedCommand.channel_id}>`)
-          .join("\n")}`
-      );
-    }
-  } else {
-    await respond(`This command is not available in this channel`);
+  else {
+    await say({text: `I couldn't find any github issue links in that message`, thread_ts: threadTs});
   }
 });
 
@@ -160,3 +87,9 @@ app.command("/listblocked", async ({ command, say, ack, respond }) => {
   await app.start(3001);
   console.log("Bolt app running on localhost:3001");
 })();
+
+expressReceiver.app.use(createNodeMiddleware(githubWebhooks));
+
+expressReceiver.app.get('/healthz', (_, res) => {
+  res.status(200).send();
+})

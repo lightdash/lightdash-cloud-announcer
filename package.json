@@ -5,13 +5,18 @@
   "main": "index.js",
   "author": "Lightdash",
   "license": "MIT",
+  "type": "module",
   "dependencies": {
+    "@octokit/webhooks": "^10.0.3",
     "@rudderstack/rudder-sdk-node": "^1.0.14",
     "@slack/bolt": "^3.9.0",
     "dotenv": "^16.0.0",
-    "ngrok": "^4.3.1"
+    "knex": "^2.1.0",
+    "ngrok": "^4.3.1",
+    "pg": "^8.7.3"
   },
   "scripts": {
+    "dev": "nodemon index.js",
     "start": "node index.js",
     "expose": "ngrok http 3001"
   },
