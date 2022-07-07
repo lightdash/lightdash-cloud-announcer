@@ -5,7 +5,7 @@ services:
     buildCommand: yarn install
     startCommand: yarn start
     repo: https://github.com/lightdash/lightdash-cloud-announcer.git
-    region: frankfurt
+    region: oregon
     plan: standard
     branch: main
     healthCheckPath: /healthz
@@ -27,6 +27,7 @@ services:
 
 databases:
   - name: dashy-db
+    region: oregon
     ipAllowList: []
 
 
