@@ -71,12 +71,26 @@ app.shortcut('link_issue', async ({shortcut, ack, client, logger, say}) => {
       }
     }
   }
-  if (githubLinks.length === 0) {
-    await say({text: `I couldn't find any github issue links in that message`, thread_ts: threadTs});
+
+  const joinAndSay = async (args) => {
+    try {
+      await say(args);
+    } catch (e) {
+      if (e.code === 'slack_webapi_platform_error' && e.data?.error === 'not_in_channel') {
+        await client.conversations.join({channel: channelId});
+        await say(args);
+      }
+      else {
+        throw e;
+      }
+    }
   }
-  else if (githubLinks.length === 1) {
+
+  if (githubLinks.length === 0) {
+    await joinAndSay({text: `I couldn't find any github issue links in that message`, thread_ts: threadTs});
+  } else if (githubLinks.length === 1) {
     const [firstGithubLink] = githubLinks;
-    await say({
+    await joinAndSay({
       text: `I'm keeping an eye on ${renderIssueRef(firstGithubLink)}\n\nI'll notify everyone here as soon as it's fixed!`,
       thread_ts: threadTs,
       unfurl_links: false,
@@ -85,7 +99,7 @@ app.shortcut('link_issue', async ({shortcut, ack, client, logger, say}) => {
   }
   else {
     const allIssues = githubLinks.map(renderIssueRef).map(s => `🛠 ${s}`).join('\n')
-    await say({
+    await joinAndSay({
       text: `I'm keeping an eye on the following issues:\n${allIssues}\n\nI'll notify everyone here as soon as any are fixed!`,
       thread_ts: threadTs,
       unfurl_links: false,

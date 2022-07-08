@@ -18,10 +18,11 @@ oauth_config:
       - channels:history
       - channels:read
       - chat:write
+      - commands
       - users.profile:read
       - users:read
       - users:read.email
-      - commands
+      - channels:join
 settings:
   event_subscriptions:
     request_url: https://8ffa-31-52-112-166.ngrok.io/slack/events
