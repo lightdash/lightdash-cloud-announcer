@@ -22,7 +22,7 @@ services:
         sync: false
       - key: SLACK_STATE_SECRET
         sync: false
-      - key: SLACK_AUTHORISED_TEAMS
+      - key: SLACK_AUTHORIZED_TEAMS
         value: "T0163M87MB9,T03942PB7E3"
       - key: SITE_ENV
         value: "https://cloudy-server.onrender.com"
