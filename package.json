@@ -12,8 +12,10 @@
     "@slack/bolt": "^3.9.0",
     "dotenv": "^16.0.0",
     "knex": "^2.1.0",
+    "minimist": "^1.2.6",
     "ngrok": "^4.3.1",
-    "pg": "^8.7.3"
+    "pg": "^8.7.3",
+    "string-argv": "^0.3.1"
   },
   "scripts": {
     "dev": "nodemon index.js",

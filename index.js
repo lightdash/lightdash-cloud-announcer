@@ -4,6 +4,9 @@ import {createGithubIssueSlackThread, getSlackThreads} from "./db.js";
 const { App, ExpressReceiver } = bolt;
 import octokit from '@octokit/webhooks';
 const { Webhooks, createNodeMiddleware } = octokit;
+import minimist from 'minimist';
+import * as StringArgv from 'string-argv';
+const {parseArgsStringToArgv} = StringArgv
 
 const githubWebhooks = new Webhooks({secret: process.env.GITHUB_WEBHOOKS_SECRET})
 
@@ -51,22 +54,51 @@ githubWebhooks.on('issues.closed', async({ payload }) => {
   }
 })
 
+app.command('/cloudy', async ({ command, ack, respond, client }) => {
+  await ack();
+  const args = minimist(parseArgsStringToArgv(command.text));
+  const showHelp = async () => {
+    await respond('Try:\n`/cloudy list https://github.com/lightdash/lightdash/issues/2222`')
+  };
+  if ((args._ ||[]).includes('help')) {
+    await showHelp();
+    return;
+  }
+  if ((args._ || []).includes('list')) {
+    const issueUrl = args._[args._.findIndex(v => v === 'list')+1];
+    if (issueUrl) {
+      const rows = await getSlackThreads(issueUrl);
+      if (rows.length === 0) {
+        await respond(`I can't find any slack threads linked to github issue: ${issueUrl}`);
+        return;
+      }
+      const promises = rows.map(row => client.chat.getPermalink({channel: row.channel_id, message_ts: row.slack_thread_ts}));
+      const results = await Promise.all(promises);
+      const permalinks = results.filter(r => r.ok).map(r => r.permalink);
+      await respond(`I'm tracking that issue in these threads:${permalinks.map(l => `\n🧵 ${l}`)}`) ;
+    }
+    else {
+      await showHelp();
+    }
+    return;
+  }
+  await showHelp();
+})
+
 app.shortcut('link_issue', async ({shortcut, ack, client, logger, say}) => {
   await ack();
   const links = shortcut.message.blocks.flatMap(b => b.elements).flatMap(a => a.elements).filter(e => e.type === 'link').map(l => l.url);
   const githubLinkRegex = /https:\/\/github.com\/[^\/]+\/[^\/]+\/issues\/[0-9]+/
-  const githubLinks = links.filter(url =>githubLinkRegex.exec(url));
+  const githubLinks = links.filter(url => githubLinkRegex.exec(url));
   const threadTs = shortcut.message.thread_ts || shortcut.message_ts;
   const channelId = shortcut.channel.id;
   for await (const githubLink of githubLinks) {
     try {
       await createGithubIssueSlackThread(githubLink, channelId, threadTs);
-    }
-    catch (e) {
+    } catch (e) {
       if ((e.constraint && e.constraint === 'github_issue_slack_threads_pkey')) {
         // do nothing we already subscribed
-      }
-      else {
+      } else {
         throw e;
       }
     }
@@ -96,8 +128,7 @@ app.shortcut('link_issue', async ({shortcut, ack, client, logger, say}) => {
       unfurl_links: false,
       unfurl_media: false
     });
-  }
-  else {
+  } else {
     const allIssues = githubLinks.map(renderIssueRef).map(s => `🛠 ${s}`).join('\n')
     await joinAndSay({
       text: `I'm keeping an eye on the following issues:\n${allIssues}\n\nI'll notify everyone here as soon as any are fixed!`,

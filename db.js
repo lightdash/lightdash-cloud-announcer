@@ -15,5 +15,5 @@ export const createGithubIssueSlackThread = async (githubIssueUrl, channelId, sl
 }
 
 export const getSlackThreads = async (githubIssueUrl) => {
-    return knex('github_issue_slack_threads').select('*').where('github_issue_url', githubIssueUrl)
+    return knex('github_issue_slack_threads').select('*').where('github_issue_url', githubIssueUrl);
 }
