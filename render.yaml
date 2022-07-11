@@ -16,8 +16,14 @@ services:
           property: connectionString
       - key: SLACK_SIGNING_SECRET
         sync: false
-      - key: SLACK_BOT_TOKEN
+      - key: SLACK_CLIENT_ID
         sync: false
+      - key: SLACK_CLIENT_SECRET
+        sync: false
+      - key: SLACK_AUTHORISED_TEAMS
+        value: "T0163M87MB9,T03942PB7E3"
+      - key: SITE_ENV
+        value: "https://cloudy-server.onrender.com"
       - key: RUDDERSTACK_WRITE_KEY
         sync: false
       - key: RUDDERSTACK_DATAPLANE_URL
