@@ -72,7 +72,7 @@ githubWebhooks.on('issues.closed', async({ payload }) => {
   const slack_threads = await getSlackThreadsAcrossWorkspaces(issueUrl);
   for await (const slack_thread of slack_threads) {
     await app.client.chat.postMessage({
-      text: `✅ We've fixed ${renderIssueRef(issueUrl)}: _${payload.issue.title}_\n\nA member of the team will be in touch to help you get the latest fix 🎉`,
+      text: `✅ We've fixed ${renderIssueRef(issueUrl)}: _${payload.issue.title}_\n\nLightdash Cloud users will automatically get the fix once your instance updates (All instances update at 01:00 PST [10:00 CET] daily). Self-hosted users should update to the latest version to get the fix 🎉`,
       token: slack_thread.bot_token,
       channel: slack_thread.channel_id,
       thread_ts: slack_thread.slack_thread_ts,
