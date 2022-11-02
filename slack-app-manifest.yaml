@@ -12,12 +12,14 @@ features:
       callback_id: link_issue
       description: Link a github issue to this thread
   slash_commands:
-    - command: /cloudy
-      url: https://1be3-31-52-112-166.ngrok.io/slack/events
+    - command: /cloudy-dev
+      url: https://fcba-86-9-98-234.ngrok.io/slack/events
       description: Our community helpbot
       usage_hint: list, help
       should_escape: false
 oauth_config:
+  redirect_urls:
+    - https://fcba-86-9-98-234.ngrok.io/slack/oauth_redirect
   scopes:
     bot:
       - app_mentions:read
@@ -31,13 +33,13 @@ oauth_config:
       - channels:join
 settings:
   event_subscriptions:
-    request_url: https://884b-31-52-112-166.ngrok.io/slack/events
+    request_url: https://fcba-86-9-98-234.ngrok.io/slack/events
     bot_events:
       - app_mention
       - message.channels
   interactivity:
     is_enabled: true
-    request_url: https://884b-31-52-112-166.ngrok.io/slack/events
+    request_url: https://fcba-86-9-98-234.ngrok.io/slack/events
   org_deploy_enabled: false
   socket_mode_enabled: false
   token_rotation_enabled: false

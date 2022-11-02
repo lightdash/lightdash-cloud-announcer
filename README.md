@@ -13,11 +13,6 @@ You can develop Cloudy locally by following these steps:
 git clone https://github.com/lightdash/lightdash-cloud-announcer.git
 ```
 
-### Setup dev environment
-
-1. Run `yarn expose` to get a url you can share with slack + github.
-2. [Create a new slack](https://api.slack.com/apps) app in a workspace. Use the `slack-app-manifest.yml` but replace the urls with the one from step 1
-3. [Create a new webhook in github](https://github.com/organizations/lightdash/settings/hooks) on our organization page: 
 
 ### Make sure you create and set an `.env` file correctly.
 
@@ -42,6 +37,7 @@ RUDDERSTACK_WRITE_KEY=[Get your Rudderstack write key here](https://app.rudderst
 
 RUDDERSTACK_DATA_PLANE_URL=[Get your data plane URL here](https://app.rudderstack.com/)
 
+## Setup dev
 
 ### 1. Install all dependencies
 
@@ -77,6 +73,11 @@ Now you need to update the following URLs with the last `Forwarding` url that ng
 ```shell
 yarn dev
 ```
+
+### 5. Install into your workspace
+
+Visit `https://[ngrok domain]/slack/oauth_redirect` to install the app correctly. This won't work through the api.
+slack.com web UI. 
 
 ### Production 
 
