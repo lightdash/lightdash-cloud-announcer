@@ -7,6 +7,15 @@ const knex = Knex(Knexfile.production)
 // knex.migrate.down();
 knex.migrate.latest().then(() => console.log('success migrating')).catch(e => console.error(`Failed migration: ${e}`));
 
+/**
+ * @param { string } channelId
+ * @returns { Promise<string> }
+ */
+export const totalIssueCountInChannel = async (channelId) => {
+    const [ { count } ] = await knex('github_issue_slack_threads').countDistinct('github_issue_url').where('channel_id', channelId);
+    return count
+}
+
 export const createGithubIssueSlackThread = async (githubIssueUrl, slackTeamId, channelId, slackThreadTs) => {
     await knex('github_issue_slack_threads').insert({
         github_issue_url: githubIssueUrl,
@@ -33,18 +42,28 @@ export const getIssueThreadsFromIssue = async (githubIssueUrl) => {
     return res.rows;
 }
 
-export const getIssueThreadsFromChannelId = async (channelId) => {
+export const countAllIssues = async () => {
     const res = await knex.raw(`
         SELECT
           threads.github_issue_url,
-          threads.channel_id,
-          threads.slack_thread_ts,
-          auths.installation->'bot'->'token' as bot_token
+          COUNT(*) as count
         FROM github_issue_slack_threads as threads
-        INNER JOIN slack_auth_tokens as auths
-          ON threads.slack_team_id = auths.slack_team_id
+        GROUP BY 1
+        ORDER BY 2 desc`
+    );
+    return res.rows;
+}
+
+export const countAllIssuesInChannel = async (channelId) => {
+    const res = await knex.raw(`
+        SELECT
+          threads.github_issue_url,
+          COUNT(*) as count
+        FROM github_issue_slack_threads as threads
         WHERE
-          threads.channel_id = ?`,
+            threads.channel_id = ?
+        GROUP BY 1
+        ORDER BY 2 desc`,
         [channelId]
     );
     return res.rows;
