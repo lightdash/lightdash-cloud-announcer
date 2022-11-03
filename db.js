@@ -16,7 +16,7 @@ export const createGithubIssueSlackThread = async (githubIssueUrl, slackTeamId, 
     })
 }
 
-export const getSlackThreadsAcrossWorkspaces = async (githubIssueUrl) => {
+export const getIssueThreadsFromIssue = async (githubIssueUrl) => {
     const res = await knex.raw(`
         SELECT
           threads.github_issue_url,
@@ -29,6 +29,23 @@ export const getSlackThreadsAcrossWorkspaces = async (githubIssueUrl) => {
         WHERE
           threads.github_issue_url = ?`,
         [githubIssueUrl]
+    );
+    return res.rows;
+}
+
+export const getIssueThreadsFromChannelId = async (channelId) => {
+    const res = await knex.raw(`
+        SELECT
+          threads.github_issue_url,
+          threads.channel_id,
+          threads.slack_thread_ts,
+          auths.installation->'bot'->'token' as bot_token
+        FROM github_issue_slack_threads as threads
+        INNER JOIN slack_auth_tokens as auths
+          ON threads.slack_team_id = auths.slack_team_id
+        WHERE
+          threads.channel_id = ?`,
+        [channelId]
     );
     return res.rows;
 }

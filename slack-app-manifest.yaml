@@ -16,7 +16,7 @@ features:
       url: https://fcba-86-9-98-234.ngrok.io/slack/events
       description: Our community helpbot
       usage_hint: list, help
-      should_escape: false
+      should_escape: true
 oauth_config:
   redirect_urls:
     - https://fcba-86-9-98-234.ngrok.io/slack/oauth_redirect
