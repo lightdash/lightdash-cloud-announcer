@@ -44,6 +44,8 @@ const expressReceiver = new ExpressReceiver({
     'users:read',
     'users:read.email',
     'channels:join',
+    'bookmarks:read',
+    'bookmarks:write',
   ],
   installationStore: {
     storeInstallation: createInstallation,
