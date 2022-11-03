@@ -4,7 +4,7 @@ import {
   createGithubIssueSlackThread,
   createInstallation,
   deleteInstallation, getIssueThreadsFromIssue,
-  getInstallation, getIssueThreadsFromChannelId,
+  getInstallation, totalIssueCountInChannel, countAllIssues, countAllIssuesInChannel,
 } from "./db.js";
 const { App, ExpressReceiver } = bolt;
 import octokit from '@octokit/webhooks';
@@ -86,7 +86,7 @@ app.command(/\/cloudy(-dev)?/, async ({ command, ack, respond, client }) => {
   await ack();
   const args = minimist(parseArgsStringToArgv(command.text));
   const showHelp = async () => {
-    await respond('Try:\n`/cloudy list #channel-name` to list all issues tracked in a channel\n`/cloudy list https://github.com/lightdash/lightdash/issues/2222` to list all threads for this issue')
+    await respond('Try:\n`/cloudy list all` to list all the issues being tracked\n`/cloudy list #channel-name` to list all issues tracked in a channel\n`/cloudy list https://github.com/lightdash/lightdash/issues/2222` to list all threads for this issue')
   };
   if ((args._ ||[]).includes('help')) {
     await showHelp();
@@ -113,18 +113,21 @@ app.command(/\/cloudy(-dev)?/, async ({ command, ack, respond, client }) => {
     else if (arg && arg.startsWith('<#')) {
       const channelRef = arg;
       const channelId = arg.split('|')[0].slice(2)
-      const rows = await getIssueThreadsFromChannelId(channelId)
-      if (rows && rows.length > 0) {
-        const issues = Object.entries(rows.reduce((acc, next) => {
-          return {
-            ...acc,
-            [next.github_issue_url]: (acc[next.github_issue_url] || 0) + 1,
-          }
-        }, {})).sort((a, b) => a[1] - b[1]);
-        await respond(`I'm tracking these github issues in ${channelRef}\n${issues.map(i => `\n🐛  ${i[1] === 1 ? '' : `*${i[1]}x* `}${i[0]}`)}`);
+      const results = await countAllIssuesInChannel(channelId);
+      if (results && results.length > 0) {
+        await respond(`Here are the issues I'm tracking in ${channelRef}:\n${results.map(row => `\n🐛 ${row.count === 1 ? '' : `*${row.count}x* `}${row.github_issue_url}`)}`);
       }
       else {
         await respond(`I'm not tracking any issues in ${channelRef}`);
+      }
+    }
+    else if (arg && arg === 'all') {
+      const results = await countAllIssues();
+      if (results && results.length > 0) {
+        await respond(`Here are all the issues I'm tracking:\n${results.map(row => `\n🐛 ${row.count === 1 ? '' : `*${row.count}x* `}${row.github_issue_url}`)}`);
+      }
+      else {
+        await respond(`I'm not tracking any issues yet!`);
       }
     }
     else {
@@ -168,6 +171,37 @@ app.shortcut('link_issue', async ({shortcut, ack, client, logger, say}) => {
       }
     }
   }
+
+  const setBookmarks = async (channelId, bookmarks) => {
+    const results = await client.bookmarks.list({channel_id: channelId});
+    if (!results.ok) {
+      return;
+    }
+    const existingBookmarks = results.bookmarks;
+    for await (const index of bookmarks.keys()) {
+      const bookmark = bookmarks[index];
+      const match = existingBookmarks[index];
+      if (match) {
+        await client.bookmarks.edit({
+          channel_id: match.channel_id,
+          bookmark_id: match.id,
+          link: bookmark.link,
+          title: bookmark.title,
+          emoji: ''
+        })
+      }
+      else {
+        await client.bookmarks.add({
+          channel_id: channelId,
+          title: bookmark.title,
+          type: 'link',
+          link: bookmark.link,
+        })
+      }
+    }
+  }
+  const totalIssues = await totalIssueCountInChannel(channelId);
+  await setBookmarks(channelId, [{title: `Linked github issues (${totalIssues})`, link: 'https://github.com/lightdash/lightdash/issues'}]);
 
   if (githubLinks.length === 0) {
     await joinAndSay({text: `I couldn't find any github issue links in that message`, thread_ts: threadTs});

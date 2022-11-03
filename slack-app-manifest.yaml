@@ -31,6 +31,8 @@ oauth_config:
       - users:read
       - users:read.email
       - channels:join
+      - bookmarks:read
+      - bookmarks:write
 settings:
   event_subscriptions:
     request_url: https://fcba-86-9-98-234.ngrok.io/slack/events
