@@ -3,8 +3,8 @@ import Analytics from '@rudderstack/rudder-sdk-node';
 import {
   createGithubIssueSlackThread,
   createInstallation,
-  deleteInstallation, getSlackThreadsAcrossWorkspaces,
-  getInstallation,
+  deleteInstallation, getIssueThreadsFromIssue,
+  getInstallation, getIssueThreadsFromChannelId,
 } from "./db.js";
 const { App, ExpressReceiver } = bolt;
 import octokit from '@octokit/webhooks';
@@ -54,7 +54,7 @@ const renderIssueRef = (issueUrl) => {
 
 githubWebhooks.on('issues.assigned', async ({ payload}) => {
   const issueUrl = payload.issue.html_url;
-  const slack_threads = await getSlackThreadsAcrossWorkspaces(issueUrl);
+  const slack_threads = await getIssueThreadsFromIssue(issueUrl);
   for await (const slack_thread of slack_threads) {
     await app.client.chat.postMessage({
       text: `🥳 <${payload.issue.assignee.html_url}|${payload.issue.assignee.login}> has started work on ${renderIssueRef(issueUrl)}!`,
@@ -69,7 +69,7 @@ githubWebhooks.on('issues.assigned', async ({ payload}) => {
 
 githubWebhooks.on('issues.closed', async({ payload }) => {
   const issueUrl = payload.issue.html_url;
-  const slack_threads = await getSlackThreadsAcrossWorkspaces(issueUrl);
+  const slack_threads = await getIssueThreadsFromIssue(issueUrl);
   for await (const slack_thread of slack_threads) {
     await app.client.chat.postMessage({
       text: `✅ We've fixed ${renderIssueRef(issueUrl)}: _${payload.issue.title}_\n\nLightdash Cloud users will automatically get the fix once your instance updates (All instances update at 01:00 PST [10:00 CET] daily). Self-hosted users should update to the latest version to get the fix 🎉`,
@@ -86,16 +86,17 @@ app.command(/\/cloudy(-dev)?/, async ({ command, ack, respond, client }) => {
   await ack();
   const args = minimist(parseArgsStringToArgv(command.text));
   const showHelp = async () => {
-    await respond('Try:\n`/cloudy list https://github.com/lightdash/lightdash/issues/2222`')
+    await respond('Try:\n`/cloudy list #channel-name` to list all issues tracked in a channel\n`/cloudy list https://github.com/lightdash/lightdash/issues/2222` to list all threads for this issue')
   };
   if ((args._ ||[]).includes('help')) {
     await showHelp();
     return;
   }
   if ((args._ || []).includes('list')) {
-    const issueUrl = args._[args._.findIndex(v => v === 'list')+1];
-    if (issueUrl) {
-      const rows = await getSlackThreadsAcrossWorkspaces(issueUrl);
+    const arg = args._[args._.findIndex(v => v === 'list')+1];
+    if (arg && arg.startsWith('<http')) {
+      const issueUrl = arg.slice(1, -1)
+      const rows = await getIssueThreadsFromIssue(issueUrl);
       if (rows.length === 0) {
         await respond(`I can't find any slack threads linked to github issue: ${issueUrl}`);
         return;
@@ -108,6 +109,23 @@ app.command(/\/cloudy(-dev)?/, async ({ command, ack, respond, client }) => {
       const results = await Promise.all(promises);
       const permalinks = results.filter(r => r.ok).map(r => r.permalink);
       await respond(`I'm tracking that issue in these threads:${permalinks.map(l => `\n🧵 ${l}`)}`) ;
+    }
+    else if (arg && arg.startsWith('<#')) {
+      const channelRef = arg;
+      const channelId = arg.split('|')[0].slice(2)
+      const rows = await getIssueThreadsFromChannelId(channelId)
+      if (rows && rows.length > 0) {
+        const issues = Object.entries(rows.reduce((acc, next) => {
+          return {
+            ...acc,
+            [next.github_issue_url]: (acc[next.github_issue_url] || 0) + 1,
+          }
+        }, {})).sort((a, b) => a[1] - b[1]);
+        await respond(`I'm tracking these github issues in ${channelRef}\n${issues.map(i => `\n🐛  ${i[1] === 1 ? '' : `*${i[1]}x* `}${i[0]}`)}`);
+      }
+      else {
+        await respond(`I'm not tracking any issues in ${channelRef}`);
+      }
     }
     else {
       await showHelp();
