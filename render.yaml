@@ -32,6 +32,8 @@ services:
         value: https://analytics.lightdash.com
       - key: GITHUB_WEBHOOKS_SECRET
         sync: false
+      - key: GITHUB_ACCESS_TOKEN
+        sync: false
 
 databases:
   - name: cloudy-db

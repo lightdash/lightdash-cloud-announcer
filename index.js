@@ -4,7 +4,7 @@ import {
   createGithubIssueSlackThread,
   createInstallation,
   deleteInstallation, getIssueThreadsFromIssue,
-  getInstallation, totalIssueCountInChannel, countAllIssues, countAllIssuesInChannel,
+  getInstallation, totalOpenIssueCountInChannel, countAllOpenIssues, countAllOpenIssuesInChannel, setIssueIsClosed,
 } from "./db.js";
 const { App, ExpressReceiver } = bolt;
 import octokit from '@octokit/webhooks';
@@ -13,8 +13,16 @@ import minimist from 'minimist';
 import * as StringArgv from 'string-argv';
 import {getTeamId} from "./slack.js";
 const {parseArgsStringToArgv} = StringArgv
+import { Octokit } from 'octokit';
+import {getIssueStatus} from "./github.js";
 
+// Github webhooks config
 const githubWebhooks = new Webhooks({secret: process.env.GITHUB_WEBHOOKS_SECRET})
+
+// Github REST API config
+const octokitClient = new Octokit({
+  auth: process.env.GITHUB_ACCESS_TOKEN,
+})
 
 const analyticsClient = new Analytics(
   process.env.RUDDERSTACK_WRITE_KEY,
@@ -69,10 +77,27 @@ githubWebhooks.on('issues.assigned', async ({ payload}) => {
 
 githubWebhooks.on('issues.closed', async({ payload }) => {
   const issueUrl = payload.issue.html_url;
+  await setIssueIsClosed(issueUrl, true);
   const slack_threads = await getIssueThreadsFromIssue(issueUrl);
   for await (const slack_thread of slack_threads) {
     await app.client.chat.postMessage({
       text: `✅ We've fixed ${renderIssueRef(issueUrl)}: _${payload.issue.title}_\n\nLightdash Cloud users will automatically get the fix once your instance updates (All instances update at 01:00 PST [10:00 CET] daily). Self-hosted users should update to the latest version to get the fix 🎉`,
+      token: slack_thread.bot_token,
+      channel: slack_thread.channel_id,
+      thread_ts: slack_thread.slack_thread_ts,
+      unfurl_links: false,
+      unfurl_media: false,
+    })
+  }
+})
+
+githubWebhooks.on('issues.reopened', async({payload}) => {
+  const issueUrl = payload.issue.html_url;
+  await setIssueIsClosed(issueUrl, false);
+  const slack_threads = await getIssueThreadsFromIssue(issueUrl);
+  for await (const slack_thread of slack_threads) {
+    await app.client.chat.postMessage({
+      text: `🔧 We've reopened this issue: ${renderIssueRef(issueUrl)}: _${payload.issue.title}_\n\nI'll notify everybody here as soon as there's another update.`,
       token: slack_thread.bot_token,
       channel: slack_thread.channel_id,
       thread_ts: slack_thread.slack_thread_ts,
@@ -113,16 +138,16 @@ app.command(/\/cloudy(-dev)?/, async ({ command, ack, respond, client }) => {
     else if (arg && arg.startsWith('<#')) {
       const channelRef = arg;
       const channelId = arg.split('|')[0].slice(2)
-      const results = await countAllIssuesInChannel(channelId);
+      const results = await countAllOpenIssuesInChannel(channelId);
       if (results && results.length > 0) {
-        await respond(`Here are the issues I'm tracking in ${channelRef}:\n${results.map(row => `\n🐛 ${row.count === 1 ? '' : `*${row.count}x* `}${row.github_issue_url}`)}`);
+        await respond(`I'm tracking these github issues in ${channelRef}:\n${results.map(row => `\n🐛 ${row.count === 1 ? '' : `*${row.count}x* `}${row.github_issue_url}`)}`);
       }
       else {
         await respond(`I'm not tracking any issues in ${channelRef}`);
       }
     }
     else if (arg && arg === 'all') {
-      const results = await countAllIssues();
+      const results = await countAllOpenIssues();
       if (results && results.length > 0) {
         await respond(`Here are all the issues I'm tracking:\n${results.map(row => `\n🐛 ${row.count === 1 ? '' : `*${row.count}x* `}${row.github_issue_url}`)}`);
       }
@@ -138,7 +163,7 @@ app.command(/\/cloudy(-dev)?/, async ({ command, ack, respond, client }) => {
   await showHelp();
 })
 
-app.shortcut('link_issue', async ({shortcut, ack, client, logger, say}) => {
+app.shortcut('link_issue', async ({shortcut, ack, client, say}) => {
   await ack();
   const links = shortcut.message.blocks.flatMap(b => b.elements).flatMap(a => a.elements).filter(e => e.type === 'link').map(l => l.url);
   const githubLinkRegex = /https:\/\/github.com\/[^\/]+\/[^\/]+\/issues\/[0-9]+/
@@ -147,8 +172,10 @@ app.shortcut('link_issue', async ({shortcut, ack, client, logger, say}) => {
   const channelId = shortcut.channel.id;
   const teamId = getTeamId(shortcut);
   for await (const githubLink of githubLinks) {
+    const issueStatus = await getIssueStatus(octokitClient, githubLink);
+    const isClosed = issueStatus === undefined ? undefined : issueStatus === 'closed';
     try {
-      await createGithubIssueSlackThread(githubLink, teamId, channelId, threadTs);
+      await createGithubIssueSlackThread(githubLink, teamId, channelId, threadTs, isClosed);
     } catch (e) {
       if ((e.constraint && e.constraint === 'github_issue_slack_threads_pkey')) {
         // do nothing we already subscribed
@@ -172,36 +199,44 @@ app.shortcut('link_issue', async ({shortcut, ack, client, logger, say}) => {
     }
   }
 
+  /**
+   *
+   * @param {string}channelId
+   * @param {{key: string, value: string, link: string}[]}bookmarks
+   * @returns {Promise<void>}
+   */
   const setBookmarks = async (channelId, bookmarks) => {
     const results = await client.bookmarks.list({channel_id: channelId});
     if (!results.ok) {
       return;
     }
     const existingBookmarks = results.bookmarks;
-    for await (const index of bookmarks.keys()) {
-      const bookmark = bookmarks[index];
-      const match = existingBookmarks[index];
+    for await (const bookmark of bookmarks) {
+      const match = existingBookmarks.find(existing => existing.title.startsWith(bookmark.key));
       if (match) {
         await client.bookmarks.edit({
           channel_id: match.channel_id,
           bookmark_id: match.id,
           link: bookmark.link,
-          title: bookmark.title,
-          emoji: ''
+          title: `${bookmark.key} (${bookmark.value})`,
         })
       }
       else {
         await client.bookmarks.add({
           channel_id: channelId,
-          title: bookmark.title,
+          title: `${bookmark.key} (${bookmark.value})`,
           type: 'link',
           link: bookmark.link,
         })
       }
     }
   }
-  const totalIssues = await totalIssueCountInChannel(channelId);
-  await setBookmarks(channelId, [{title: `Linked github issues (${totalIssues})`, link: 'https://github.com/lightdash/lightdash/issues'}]);
+  const totalIssues = await totalOpenIssueCountInChannel(channelId);
+  await setBookmarks(channelId, [{
+    key: 'Open github issues',
+    value: totalIssues,
+    link: 'https://github.com/lightdash/lightdash/issues'}]
+  );
 
   if (githubLinks.length === 0) {
     await joinAndSay({text: `I couldn't find any github issue links in that message`, thread_ts: threadTs});

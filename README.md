@@ -33,6 +33,8 @@ SITE_ENV=https://domain.where.app.hosted.com
 
 GITHUB_WEBHOOKS_SECRET=[Create a new webhook with a secret](https://github.com/organizations/lightdash/settings/hooks)
 
+GITHUB_ACCESS_TOKEN=[Create a new access token](https://github.com/settings/tokens/new)
+
 RUDDERSTACK_WRITE_KEY=[Get your Rudderstack write key here](https://app.rudderstack.com/)
 
 RUDDERSTACK_DATA_PLANE_URL=[Get your data plane URL here](https://app.rudderstack.com/)
