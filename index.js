@@ -199,6 +199,26 @@ app.shortcut('link_issue', async ({shortcut, ack, client, say}) => {
     }
   }
 
+  if (githubLinks.length === 0) {
+    await joinAndSay({text: `I couldn't find any github issue links in that message`, thread_ts: threadTs});
+  } else if (githubLinks.length === 1) {
+    const [firstGithubLink] = githubLinks;
+    await joinAndSay({
+      text: `I'm keeping an eye on ${renderIssueRef(firstGithubLink)}\n\nI'll notify everyone here as soon as it's fixed!`,
+      thread_ts: threadTs,
+      unfurl_links: false,
+      unfurl_media: false
+    });
+  } else {
+    const allIssues = githubLinks.map(renderIssueRef).map(s => `🛠 ${s}`).join('\n')
+    await joinAndSay({
+      text: `I'm keeping an eye on the following issues:\n${allIssues}\n\nI'll notify everyone here as soon as any are fixed!`,
+      thread_ts: threadTs,
+      unfurl_links: false,
+      unfurl_media: false
+    })
+  }
+
   /**
    *
    * @param {string}channelId
@@ -237,26 +257,6 @@ app.shortcut('link_issue', async ({shortcut, ack, client, say}) => {
     value: totalIssues,
     link: 'https://github.com/lightdash/lightdash/issues'}]
   );
-
-  if (githubLinks.length === 0) {
-    await joinAndSay({text: `I couldn't find any github issue links in that message`, thread_ts: threadTs});
-  } else if (githubLinks.length === 1) {
-    const [firstGithubLink] = githubLinks;
-    await joinAndSay({
-      text: `I'm keeping an eye on ${renderIssueRef(firstGithubLink)}\n\nI'll notify everyone here as soon as it's fixed!`,
-      thread_ts: threadTs,
-      unfurl_links: false,
-      unfurl_media: false
-    });
-  } else {
-    const allIssues = githubLinks.map(renderIssueRef).map(s => `🛠 ${s}`).join('\n')
-    await joinAndSay({
-      text: `I'm keeping an eye on the following issues:\n${allIssues}\n\nI'll notify everyone here as soon as any are fixed!`,
-      thread_ts: threadTs,
-      unfurl_links: false,
-      unfurl_media: false
-    })
-  }
 });
 
 (async () => {
