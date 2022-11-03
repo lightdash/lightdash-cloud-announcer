@@ -11,18 +11,34 @@ knex.migrate.latest().then(() => console.log('success migrating')).catch(e => co
  * @param { string } channelId
  * @returns { Promise<string> }
  */
-export const totalIssueCountInChannel = async (channelId) => {
-    const [ { count } ] = await knex('github_issue_slack_threads').countDistinct('github_issue_url').where('channel_id', channelId);
+export const totalOpenIssueCountInChannel = async (channelId) => {
+    const [ { count } ] = await knex('github_issue_slack_threads')
+        .countDistinct('github_issue_url')
+        .where('channel_id', channelId)
+        .andWhereRaw('is_closed is false');
     return count
 }
 
-export const createGithubIssueSlackThread = async (githubIssueUrl, slackTeamId, channelId, slackThreadTs) => {
+/**
+ *
+ * @param {string} githubIssueUrl
+ * @param {boolean} isClosed
+ * @returns {Promise<void>}
+ */
+export const setIssueIsClosed = async (githubIssueUrl, isClosed) => {
+    await knex('github_issue_slack_threads')
+        .where('github_issue_url', githubIssueUrl)
+        .update({'is_closed': isClosed});
+}
+
+export const createGithubIssueSlackThread = async (githubIssueUrl, slackTeamId, channelId, slackThreadTs, isClosed) => {
     await knex('github_issue_slack_threads').insert({
         github_issue_url: githubIssueUrl,
         slack_team_id: slackTeamId,
         channel_id: channelId,
         slack_thread_ts: slackThreadTs,
-    })
+        is_closed: isClosed,
+    }).onConflict(['github_issue_url', 'slack_team_id', 'channel_id', 'slack_thread_ts']).merge();
 }
 
 export const getIssueThreadsFromIssue = async (githubIssueUrl) => {
@@ -42,19 +58,21 @@ export const getIssueThreadsFromIssue = async (githubIssueUrl) => {
     return res.rows;
 }
 
-export const countAllIssues = async () => {
+export const countAllOpenIssues = async () => {
     const res = await knex.raw(`
         SELECT
           threads.github_issue_url,
           COUNT(*) as count
         FROM github_issue_slack_threads as threads
+        WHERE
+            threads.is_closed is false
         GROUP BY 1
         ORDER BY 2 desc`
     );
     return res.rows;
 }
 
-export const countAllIssuesInChannel = async (channelId) => {
+export const countAllOpenIssuesInChannel = async (channelId) => {
     const res = await knex.raw(`
         SELECT
           threads.github_issue_url,
@@ -62,6 +80,8 @@ export const countAllIssuesInChannel = async (channelId) => {
         FROM github_issue_slack_threads as threads
         WHERE
             threads.channel_id = ?
+        AND
+            threads.is_closed is false
         GROUP BY 1
         ORDER BY 2 desc`,
         [channelId]

@@ -7,6 +7,7 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
+    "@octokit/auth-token": "^3.0.2",
     "@octokit/webhooks": "^10.0.3",
     "@rudderstack/rudder-sdk-node": "^1.0.14",
     "@slack/bolt": "^3.9.0",
@@ -14,6 +15,7 @@
     "knex": "^2.1.0",
     "minimist": "^1.2.6",
     "ngrok": "^4.3.1",
+    "octokit": "^2.0.10",
     "pg": "^8.7.3",
     "string-argv": "^0.3.1"
   },
