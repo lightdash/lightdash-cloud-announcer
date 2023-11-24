@@ -274,7 +274,7 @@ app.shortcut('link_issue', async ({shortcut, ack, client, say}) => {
   }
   const openIssueUrls = await allOpenIssueUrlsInChannel(channelId);
   const totalIssues = openIssueUrls.length;
-  const issueIds = openIssueUrls.map(issueIdFromUrl);
+  const issueIds = openIssueUrls.slice(50).map(issueIdFromUrl); // GitHub url appears to only support 50 issue ids
   const issueListHtmlUrl = `https://github.com/lightdash/lightdash/issues/?q=is%3Aissue+is%3Aopen+${issueIds.join('+')}`
   await setBookmarks(channelId, [{
     key: 'Open github issues',
