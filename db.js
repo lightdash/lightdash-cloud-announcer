@@ -20,6 +20,20 @@ export const totalOpenIssueCountInChannel = async (channelId) => {
 }
 
 /**
+ * @param { string } channelId
+ * @returns {Promise<string[]>}
+ */
+export const allOpenIssueUrlsInChannel = async (channelId) => {
+    const openIssues = await knex('github_issue_slack_threads')
+        .select('github_issue_url')
+        .distinctOn('github_issue_url')
+        .where('channel_id', channelId)
+        .andWhere('is_closed', false)
+        .pluck('github_issue_url');
+    return openIssues;
+}
+
+/**
  *
  * @param {string} githubIssueUrl
  * @param {boolean} isClosed

@@ -3,8 +3,13 @@ import Analytics from '@rudderstack/rudder-sdk-node';
 import {
   createGithubIssueSlackThread,
   createInstallation,
-  deleteInstallation, getIssueThreadsFromIssue,
-  getInstallation, totalOpenIssueCountInChannel, countAllOpenIssues, countAllOpenIssuesInChannel, setIssueIsClosed,
+  deleteInstallation,
+  getIssueThreadsFromIssue,
+  getInstallation,
+  countAllOpenIssues,
+  countAllOpenIssuesInChannel,
+  setIssueIsClosed,
+  allOpenIssueUrlsInChannel,
 } from "./db.js";
 const { App, ExpressReceiver } = bolt;
 import octokit from '@octokit/webhooks';
@@ -57,17 +62,31 @@ const app = new App({
   receiver: expressReceiver,
 });
 
+/**
+ * @param { string } issueUrl
+ * @returns { string }
+ */
+const issueIdFromUrl = (issueUrl) => {
+    return issueUrl.split('/').pop();
+}
+
 const renderIssueRef = (issueUrl) => {
-  const issueId = issueUrl.split('/').pop();
+  const issueId = issueIdFromUrl(issueUrl);
   return `<${issueUrl}|issue #${issueId}>`;
 }
 
 githubWebhooks.on('issues.assigned', async ({ payload}) => {
+  console.log('issues.assigned', payload)
   const issueUrl = payload.issue.html_url;
   const slack_threads = await getIssueThreadsFromIssue(issueUrl);
+  const assignees = (payload.issue.assignees || [])
+      .filter(a => !!a)
+      .map(a => `<${a.html_url}|${a.login}>`).join(', ');
+  const text = `🥳 ${assignees} started work on ${renderIssueRef(issueUrl)}!`
+  console.log(text)
   for await (const slack_thread of slack_threads) {
     await app.client.chat.postMessage({
-      text: `🥳 <${payload.issue.assignee.html_url}|${payload.issue.assignee.login}> has started work on ${renderIssueRef(issueUrl)}!`,
+      text,
       token: slack_thread.bot_token,
       channel: slack_thread.channel_id,
       thread_ts: slack_thread.slack_thread_ts,
@@ -253,12 +272,15 @@ app.shortcut('link_issue', async ({shortcut, ack, client, say}) => {
       }
     }
   }
-  const totalIssues = await totalOpenIssueCountInChannel(channelId);
+  const openIssueUrls = await allOpenIssueUrlsInChannel(channelId);
+  const totalIssues = openIssueUrls.length;
+  const issueIds = openIssueUrls.map(issueIdFromUrl);
+  const issueListHtmlUrl = `https://github.com/lightdash/lightdash/issues/?q=is%3Aissue+is%3Aopen+${issueIds.join('+')}`
   await setBookmarks(channelId, [{
     key: 'Open github issues',
     value: totalIssues,
-    link: 'https://github.com/lightdash/lightdash/issues'}]
-  );
+    link: issueListHtmlUrl,
+  }]);
 });
 
 (async () => {
