@@ -94,10 +94,22 @@ GITHUB_ACCESS_TOKEN=a personal access token for GitHub
 yarn dev
 ```
 
-### 7. Install into your workspace
+### 7. Verify webhooks
+
+Once the app is running, in your webhook settings in GitHub verify that you can receive the ping event:
+
+![CleanShot 2023-11-29 at 19 00 12@2x](https://github.com/lightdash/lightdash-cloud-announcer/assets/11660098/195add17-9e6e-46c3-8483-9598aa0b619c)
+
+In Slack under "event subscriptions" check you can receive the ping event:
+
+![CleanShot 2023-11-29 at 19 01 51@2x](https://github.com/lightdash/lightdash-cloud-announcer/assets/11660098/87c3b8f8-9a7e-4fd4-ad74-2c3bc0f832ae)
+
+
+### 8. Install into your workspace
 
 Visit `https://[ngrok domain]/slack/oauth_redirect` to install the app correctly. This won't work through the api.
 slack.com web UI. 
+
 
 ### Production 
 
