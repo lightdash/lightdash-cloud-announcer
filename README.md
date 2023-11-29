@@ -69,14 +69,32 @@ Now you need to update the following URLs with the last `Forwarding` url that ng
   * `SLACK_SIGNING_SECRET`
   * `SLACK_CLIENT_ID`
   * `SLACK_CLIENT_SECRET`
+ 
 
-### 4. Run the app locally
+### 4. Setup GitHub webhooks
+
+Go to webhooks and create a new webhook
+- Payload URL `https://[ngrok domain]/api/github/webhooks`
+- Content type: `application/json`
+- Add a secret variable (it can be anything)
+- Enable SSL
+- "Let me select individual events" -> `Issues` only
+- Active ✔️
+
+In the app add the following variables:
+
+```
+GITHUB_WEBHOOKS_SECRET=the secret you chose above (it can be anything but must match the one you provided to github)
+GITHUB_ACCESS_TOKEN=a personal access token for GitHub
+```
+
+### 6. Run the app locally
 
 ```shell
 yarn dev
 ```
 
-### 5. Install into your workspace
+### 7. Install into your workspace
 
 Visit `https://[ngrok domain]/slack/oauth_redirect` to install the app correctly. This won't work through the api.
 slack.com web UI. 
