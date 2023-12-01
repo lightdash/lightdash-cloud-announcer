@@ -19,6 +19,12 @@ import {getTeamId} from "./slack.js";
 const {parseArgsStringToArgv} = StringArgv
 import { Octokit } from 'octokit';
 import {getIssueStatus, postCommentOnIssue} from "./github.js";
+import * as Sentry from '@sentry/node';
+
+// Setup Sentry
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+});
 
 // Github webhooks config
 const githubWebhooks = new Webhooks({secret: process.env.GITHUB_WEBHOOKS_SECRET})
@@ -55,6 +61,8 @@ const expressReceiver = new ExpressReceiver({
 const app = new App({
   receiver: expressReceiver,
 });
+
+expressReceiver.app.use(Sentry.Handlers.requestHandler());
 
 /**
  * @param { string } issueUrl
@@ -298,14 +306,16 @@ app.shortcut('link_issue', async ({shortcut, ack, client, say}) => {
   }]);
 });
 
-(async () => {
-  await app.start(3001);
-  console.log("Bolt app running on localhost:3001");
-})()
-    .catch((e) => console.error(e));
-
 expressReceiver.app.use(createNodeMiddleware(githubWebhooks));
 
 expressReceiver.app.get('/healthz', (_, res) => {
   res.status(200).send();
 })
+
+expressReceiver.app.use(Sentry.Handlers.errorHandler());
+
+(async () => {
+  await app.start(3001);
+  console.log("Bolt app running on localhost:3001");
+})()
+    .catch((e) => console.error(e));

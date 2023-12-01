@@ -10,6 +10,7 @@
     "@octokit/auth-token": "^3.0.2",
     "@octokit/webhooks": "^10.0.3",
     "@rudderstack/rudder-sdk-node": "^1.0.14",
+    "@sentry/node": "^7.84.0",
     "@slack/bolt": "^3.9.0",
     "dotenv": "^16.0.0",
     "knex": "^2.1.0",
