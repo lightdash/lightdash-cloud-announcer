@@ -72,6 +72,21 @@ export const getIssueThreadsFromIssue = async (githubIssueUrl) => {
     return res.rows;
 }
 
+/**
+ *
+ * @param {string} slackTeamId
+ * @returns {Promise<string>}
+ */
+export const getSlackBotToken = async (slackTeamId) => {
+    const row = await knex('slack_auth_tokens')
+        .first(knex.raw('installation->\'bot\'->>\'token\' as bot_token'))
+        .where('slack_team_id', slackTeamId)
+    if (row === undefined) {
+        throw new Error(`Could not find a slack bot token for team id ${slackTeamId}`);
+    }
+    return row.bot_token;
+}
+
 export const countAllOpenIssues = async () => {
     const res = await knex.raw(`
         SELECT

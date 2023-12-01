@@ -24,3 +24,14 @@ export const getIssueStatus = async (octokitClient, githubIssueUrl) => {
         return undefined
     }
 }
+
+/**
+ * @param {import("octokit").Octokit} octokitClient
+ * @param {string} githubIssueUrl
+ * @param {string} comment
+ * @returns {Promise<void>}
+ */
+export const postCommentOnIssue = async (octokitClient, githubIssueUrl, comment) => {
+    const { owner, repo, issueNumber } = issueUrlComponents(githubIssueUrl);
+    await octokitClient.rest.issues.createComment({owner, repo, issue_number: issueNumber, body: comment});
+}

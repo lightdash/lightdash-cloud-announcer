@@ -1,5 +1,4 @@
 import bolt from '@slack/bolt';
-import Analytics from '@rudderstack/rudder-sdk-node';
 import {
   createGithubIssueSlackThread,
   createInstallation,
@@ -9,7 +8,7 @@ import {
   countAllOpenIssues,
   countAllOpenIssuesInChannel,
   setIssueIsClosed,
-  allOpenIssueUrlsInChannel,
+  allOpenIssueUrlsInChannel, getSlackBotToken,
 } from "./db.js";
 const { App, ExpressReceiver } = bolt;
 import octokit from '@octokit/webhooks';
@@ -19,7 +18,7 @@ import * as StringArgv from 'string-argv';
 import {getTeamId} from "./slack.js";
 const {parseArgsStringToArgv} = StringArgv
 import { Octokit } from 'octokit';
-import {getIssueStatus} from "./github.js";
+import {getIssueStatus, postCommentOnIssue} from "./github.js";
 
 // Github webhooks config
 const githubWebhooks = new Webhooks({secret: process.env.GITHUB_WEBHOOKS_SECRET})
@@ -28,11 +27,6 @@ const githubWebhooks = new Webhooks({secret: process.env.GITHUB_WEBHOOKS_SECRET}
 const octokitClient = new Octokit({
   auth: process.env.GITHUB_ACCESS_TOKEN,
 })
-
-const analyticsClient = new Analytics(
-  process.env.RUDDERSTACK_WRITE_KEY,
-  `${process.env.RUDDERSTACK_DATA_PLANE_URL}/v1/batch`
-);
 
 const expressReceiver = new ExpressReceiver({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
@@ -76,14 +70,12 @@ const renderIssueRef = (issueUrl) => {
 }
 
 githubWebhooks.on('issues.assigned', async ({ payload}) => {
-  console.log('issues.assigned', payload)
   const issueUrl = payload.issue.html_url;
   const slack_threads = await getIssueThreadsFromIssue(issueUrl);
   const assignees = (payload.issue.assignees || [])
       .filter(a => !!a)
       .map(a => `<${a.html_url}|${a.login}>`).join(', ');
   const text = `🥳 ${assignees} started work on ${renderIssueRef(issueUrl)}!`
-  console.log(text)
   for await (const slack_thread of slack_threads) {
     await app.client.chat.postMessage({
       text,
@@ -99,10 +91,17 @@ githubWebhooks.on('issues.assigned', async ({ payload}) => {
 githubWebhooks.on('issues.closed', async({ payload }) => {
   const issueUrl = payload.issue.html_url;
   await setIssueIsClosed(issueUrl, true);
+  let message = `Issue ${renderIssueRef(issueUrl)} was closed`; // default message
+  if (payload.issue.state_reason === 'completed') {
+    message = `✅ We've fixed ${renderIssueRef(issueUrl)}: _${payload.issue.title}_\n\nLightdash Cloud users will automatically get the fix once your instance updates (All instances update at 01:00 PST [10:00 CET] daily). Self-hosted users should update to the latest version to get the fix 🎉`
+  }
+  else if (payload.issue.state_reason === 'not_planned') {
+    message = `🗑 Issue ${renderIssueRef(issueUrl)} is no longer planned to be fixed. This could be because it's a duplicate of another issue. Somebody from the team will reach out shortly to provide an update.`
+  }
   const slack_threads = await getIssueThreadsFromIssue(issueUrl);
   for await (const slack_thread of slack_threads) {
     await app.client.chat.postMessage({
-      text: `✅ We've fixed ${renderIssueRef(issueUrl)}: _${payload.issue.title}_\n\nLightdash Cloud users will automatically get the fix once your instance updates (All instances update at 01:00 PST [10:00 CET] daily). Self-hosted users should update to the latest version to get the fix 🎉`,
+      text: message,
       token: slack_thread.bot_token,
       channel: slack_thread.channel_id,
       thread_ts: slack_thread.slack_thread_ts,
@@ -192,6 +191,12 @@ app.shortcut('link_issue', async ({shortcut, ack, client, say}) => {
   const threadTs = shortcut.message.thread_ts || shortcut.message_ts;
   const channelId = shortcut.channel.id;
   const teamId = getTeamId(shortcut);
+  const slackBotToken = await getSlackBotToken(teamId);
+  const threadPermalink = await client.chat.getPermalink({
+    token: slackBotToken,
+    channel: channelId,
+    message_ts: threadTs,
+  });
   for await (const githubLink of githubLinks) {
     const issueStatus = await getIssueStatus(octokitClient, githubLink);
     const isClosed = issueStatus === undefined ? undefined : issueStatus === 'closed';
@@ -203,6 +208,16 @@ app.shortcut('link_issue', async ({shortcut, ack, client, say}) => {
       } else {
         throw e;
       }
+    }
+    try {
+      await postCommentOnIssue(octokitClient, githubLink, `This issue was mentioned by a user in slack: ${threadPermalink.permalink}`);
+    } catch (e) {
+        if (e.status === 404) {
+            // do nothing, issue doesn't exist
+        } else {
+          // log out the error but don't crash the handler
+          console.error(e);
+        }
     }
   }
 
@@ -286,7 +301,8 @@ app.shortcut('link_issue', async ({shortcut, ack, client, say}) => {
 (async () => {
   await app.start(3001);
   console.log("Bolt app running on localhost:3001");
-})();
+})()
+    .catch((e) => console.error(e));
 
 expressReceiver.app.use(createNodeMiddleware(githubWebhooks));
 
