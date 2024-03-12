@@ -13,23 +13,23 @@ You can develop Cloudy locally by following these steps:
 git clone https://github.com/lightdash/lightdash-cloud-announcer.git
 ```
 
-
 ### Make sure you create and set an `.env` file correctly.
 
+ℹ️ app id for "dev Cloudy" is `A03NM81NBFD`
 
-SLACK_SIGNING_SECRET=[Get variable from slack app settings](https://api.slack.com/apps/A033CLM638C/general)
+SLACK_SIGNING_SECRET=[Get variable from slack app settings](https://api.slack.com/apps/[APP_ID]/general)
 
-SLACK_CLIENT_ID=[Get variable from slack app settings](https://api.slack.com/apps/A033CLM638C/general)
+SLACK_CLIENT_ID=[Get variable from slack app settings](https://api.slack.com/apps/[APP_ID]/general)
 
-SLACK_CLIENT_SECRET=[Get variable from slack app settings](https://api.slack.com/apps/A033CLM638C/general)
+SLACK_CLIENT_SECRET=[Get variable from slack app settings](https://api.slack.com/apps/[APP_ID]/general)
 
 SLACK_STATE_SECRET=this can be anything
 
-SLACK_AUTHORIzED_TEAMS=T0163M87MB9,T03942PB7E3
+SLACK_AUTHORIZED_TEAMS=T0163M87MB9,T03942PB7E3
 
 PG_CONNECTION_STRING=postgres://user:pass@host:port/database
 
-SITE_ENV=https://domain.where.app.hosted.com
+SITE_ENV=https://cloudy-dev-crazy-cayote.loca.lt
 
 GITHUB_WEBHOOKS_SECRET=[Create a new webhook with a secret](https://github.com/organizations/lightdash/settings/hooks)
 
@@ -52,28 +52,29 @@ yarn start
 ```
 
 ### 2. Run ngrok and update URLs
+
 ```shell
 yarn expose
 ```
 
 Now you need to update the following URLs with the last `Forwarding` url that ngrok returns:
 
-* Update the `SITE_ENV` environment variable
-* Update all domains in the `/slack-app-manifest.yaml`
+- Update the `SITE_ENV` environment variable
+- Update all domains in the `/slack-app-manifest.yaml`
 
 ### 3. Configure slack to use our app
 
-* Create or update a slack app at `https://api.slack.com`
-* Copy in the `slack-app-manifest.yaml` (change command names and bot name if in dev)
-* Get all the secrets from the "basic information" and update:
-  * `SLACK_SIGNING_SECRET`
-  * `SLACK_CLIENT_ID`
-  * `SLACK_CLIENT_SECRET`
- 
+- Create or update a slack app at `https://api.slack.com`
+- Copy in the `slack-app-manifest.yaml` (change command names and bot name if in dev)
+- Get all the secrets from the "basic information" and update:
+  - `SLACK_SIGNING_SECRET`
+  - `SLACK_CLIENT_ID`
+  - `SLACK_CLIENT_SECRET`
 
 ### 4. Setup GitHub webhooks
 
 Go to webhooks and create a new webhook
+
 - Payload URL `https://[ngrok domain]/api/github/webhooks`
 - Content type: `application/json`
 - Add a secret variable (it can be anything)
@@ -104,17 +105,15 @@ In Slack under "event subscriptions" check you can receive the ping event:
 
 ![CleanShot 2023-11-29 at 19 01 51@2x](https://github.com/lightdash/lightdash-cloud-announcer/assets/11660098/87c3b8f8-9a7e-4fd4-ad74-2c3bc0f832ae)
 
-
 ### 8. Install into your workspace
 
 Visit `https://[ngrok domain]/slack/oauth_redirect` to install the app correctly. This won't work through the api.
-slack.com web UI. 
+slack.com web UI.
 
+### Production
 
-### Production 
-
-* Update all URLs for prod deployment
-* Under "manage distribution" set to "publicly available"
+- Update all URLs for prod deployment
+- Under "manage distribution" set to "publicly available"
 
 ### Dev notes
 

@@ -1,8 +1,12 @@
 display_information:
-  name: "[dev] Cloudy"
+  name: dev Cloudy
   description: Cloudy - our community helpbot
   background_color: "#000000"
 features:
+  app_home:
+    home_tab_enabled: false
+    messages_tab_enabled: false
+    messages_tab_read_only_enabled: false
   bot_user:
     display_name: "[dev] Cloudy"
     always_online: true
@@ -11,37 +15,41 @@ features:
       type: message
       callback_id: link_issue
       description: Link a github issue to this thread
+    # - name: Assign to...
+    #   type: message
+    #   callback_id: assign_thread
+    #   description: Assign this support thread to me
   slash_commands:
     - command: /cloudy-dev
-      url: https://fcba-86-9-98-234.ngrok.io/slack/events
+      url: https://cloudy-dev-crazy-cayote.loca.lt/slack/events
       description: Our community helpbot
       usage_hint: list, help
       should_escape: true
 oauth_config:
   redirect_urls:
-    - https://fcba-86-9-98-234.ngrok.io/slack/oauth_redirect
+    - https://cloudy-dev-crazy-cayote.loca.lt/slack/oauth_redirect
   scopes:
     bot:
       - app_mentions:read
+      - bookmarks:read
+      - bookmarks:write
       - channels:history
+      - channels:join
       - channels:read
       - chat:write
       - commands
-      - users.profile:read
       - users:read
       - users:read.email
-      - channels:join
-      - bookmarks:read
-      - bookmarks:write
+      - users.profile:read
 settings:
   event_subscriptions:
-    request_url: https://fcba-86-9-98-234.ngrok.io/slack/events
+    request_url: https://cloudy-dev-crazy-cayote.loca.lt/slack/events
     bot_events:
       - app_mention
       - message.channels
   interactivity:
     is_enabled: true
-    request_url: https://fcba-86-9-98-234.ngrok.io/slack/events
+    request_url: https://cloudy-dev-crazy-cayote.loca.lt/slack/events
   org_deploy_enabled: false
   socket_mode_enabled: false
   token_rotation_enabled: false
