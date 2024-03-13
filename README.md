@@ -57,7 +57,7 @@ yarn start
 yarn expose
 ```
 
-Now you need to update the following URLs with the last `Forwarding` url that ngrok returns:
+Now you need to update the following URLs with the last `Forwarding` url that localtunnel returns:
 
 - Update the `SITE_ENV` environment variable
 - Update all domains in the `/slack-app-manifest.yaml`
