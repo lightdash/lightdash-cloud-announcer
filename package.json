@@ -6,6 +6,9 @@
   "author": "Lightdash",
   "license": "MIT",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@octokit/auth-token": "^3.0.2",
     "@octokit/webhooks": "^10.0.3",
