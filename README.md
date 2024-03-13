@@ -51,7 +51,7 @@ yarn
 yarn start
 ```
 
-### 2. Run ngrok and update URLs
+### 2. Run localtunnel and update URLs
 
 ```shell
 yarn expose
