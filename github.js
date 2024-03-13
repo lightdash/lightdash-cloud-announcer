@@ -13,7 +13,7 @@ export const issueUrlComponents = (githubIssueUrl) => {
  *
  * @param {import("octokit").Octokit} octokitClient
  * @param { string } githubIssueUrl
- * @returns {undefined | string}
+ * @returns {Promise<string | undefined>}
  */
 export const getIssueStatus = async (octokitClient, githubIssueUrl) => {
     try {

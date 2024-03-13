@@ -40,26 +40,28 @@ const expressReceiver = new ExpressReceiver({
   clientSecret: process.env.SLACK_CLIENT_SECRET,
   stateSecret: process.env.SLACK_STATE_SECRET,
   scopes: [
-    'app_mentions:read',
-    'channels:history',
-    'channels:read',
-    'chat:write',
-    'commands',
-    'users.profile:read',
-    'users:read',
-    'users:read.email',
-    'channels:join',
-    'bookmarks:read',
-    'bookmarks:write',
+    "app_mentions:read",
+    "bookmarks:read",
+    "bookmarks:write",
+    "channels:history",
+    "channels:join",
+    "channels:read",
+    "chat:write",
+    "commands",
+    "users:read.email",
+    "users:read",
+    "users.profile:read",
   ],
   installationStore: {
     storeInstallation: createInstallation,
     fetchInstallation: getInstallation,
     deleteInstallation,
   },
-})
+});
+
 const app = new App({
   receiver: expressReceiver,
+  logLevel: process.env.ENV === 'development' ? 'DEBUG' : 'INFO',
 });
 
 expressReceiver.app.use(Sentry.Handlers.requestHandler());
@@ -191,11 +193,24 @@ app.command(/\/cloudy(-dev)?/, async ({ command, ack, respond, client }) => {
   await showHelp();
 })
 
+const findLinks = blocks =>
+  blocks.flatMap(block =>
+    block.elements.flatMap(element =>
+      element.type === 'link'
+        ? [element.url]
+        : element.elements
+        ? findLinks([{elements: element.elements}])
+        : []
+    )
+  );
+
 app.shortcut('link_issue', async ({shortcut, ack, client, say}) => {
   await ack();
-  const links = shortcut.message.blocks.flatMap(b => b.elements).flatMap(a => a.elements).filter(e => e.type === 'link').map(l => l.url);
+
+  const links = findLinks(shortcut.message.blocks)
   const githubLinkRegex = /https:\/\/github.com\/[^\/]+\/[^\/]+\/issues\/[0-9]+/
   const githubLinks = links.filter(url => githubLinkRegex.exec(url));
+
   const threadTs = shortcut.message.thread_ts || shortcut.message_ts;
   const channelId = shortcut.channel.id;
   const teamId = getTeamId(shortcut);
@@ -243,24 +258,72 @@ app.shortcut('link_issue', async ({shortcut, ack, client, say}) => {
     }
   }
 
+  const githubLinksWithThreads = {};
+  for (const githubLink of githubLinks) {
+    const threads = await getIssueThreadsFromIssue(githubLink);
+    githubLinksWithThreads[githubLink] = threads;
+  }
+
   if (githubLinks.length === 0) {
-    await joinAndSay({text: `I couldn't find any github issue links in that message`, thread_ts: threadTs});
+    await joinAndSay({
+      text: `I couldn't find any github issue links in that message`,
+      thread_ts: threadTs,
+    });
   } else if (githubLinks.length === 1) {
     const [firstGithubLink] = githubLinks;
+
+    const threads = githubLinksWithThreads[firstGithubLink];
+    const totalRequests =
+      threads && threads.length > 0
+        ? threads.length - 1
+        : 0;
+
+    const text =
+      totalRequests > 0
+        ? `I've upvoted ${renderIssueRef(
+            firstGithubLink
+          )} for you! This issue has been requested by ${
+            totalRequests
+          } other users.\n\nI'm tracking it, so I'll notify everyone here as soon as it's fixed.`
+        : `I've upvoted ${renderIssueRef(
+            firstGithubLink
+          )} for you! You're the first user to request this issue.\n\nI'm tracking it, so I'll notify everyone here as soon as it's fixed.`;
+
     await joinAndSay({
-      text: `I'm keeping an eye on ${renderIssueRef(firstGithubLink)}\n\nI'll notify everyone here as soon as it's fixed!`,
+      text: text,
       thread_ts: threadTs,
       unfurl_links: false,
-      unfurl_media: false
+      unfurl_media: false,
     });
   } else {
-    const allIssues = githubLinks.map(renderIssueRef).map(s => `🛠 ${s}`).join('\n')
+    let text = `I've upvoted these issues for you:\n`;
+
+    for (const githubLink of githubLinks) {
+      const threads = githubLinksWithThreads[githubLink];
+      const totalRequests =
+      threads && threads.length > 0
+        ? threads.length - 1
+        : 0;
+
+      if (totalRequests > 0) {
+        text += `\n🛠️ ${renderIssueRef(
+          githubLink
+        )} - this issue has been requested by ${
+          totalRequests
+        } other users.`;
+      } else {
+        text += `\n🛠️ ${renderIssueRef(
+          githubLink
+        )} - you're the first user to request this issue.`;
+      }
+    }
+
     await joinAndSay({
-      text: `I'm keeping an eye on the following issues:\n${allIssues}\n\nI'll notify everyone here as soon as any are fixed!`,
+      text: text,
       thread_ts: threadTs,
       unfurl_links: false,
-      unfurl_media: false
-    })
+      unfurl_media: false,
+    });
   }
 
   /**
