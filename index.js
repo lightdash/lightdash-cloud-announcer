@@ -64,8 +64,6 @@ const app = new App({
   logLevel: process.env.ENV === 'development' ? 'DEBUG' : 'INFO',
 });
 
-expressReceiver.app.use(Sentry.Handlers.requestHandler());
-
 /**
  * @param { string } issueUrl
  * @returns { string }
@@ -375,7 +373,7 @@ expressReceiver.app.get('/healthz', (_, res) => {
   res.status(200).send();
 })
 
-expressReceiver.app.use(Sentry.Handlers.errorHandler());
+Sentry.setupExpressErrorHandler(expressReceiver.app);
 
 (async () => {
   await app.start(3001);
