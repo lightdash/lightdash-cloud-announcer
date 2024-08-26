@@ -18,7 +18,7 @@ import * as StringArgv from 'string-argv';
 import {getTeamId} from "./slack.js";
 const {parseArgsStringToArgv} = StringArgv
 import { Octokit } from 'octokit';
-import {getIssueStatus, postCommentOnIssue} from "./github.js";
+import {getIssueStatus, postCommentOnIssue, getLastComment} from "./github.js";
 import * as Sentry from '@sentry/node';
 
 // Setup Sentry
@@ -104,7 +104,8 @@ githubWebhooks.on('issues.closed', async({ payload }) => {
     message = `✅ We've fixed ${renderIssueRef(issueUrl)}: _${payload.issue.title}_\n\nLightdash Cloud users will automatically get the fix once your instance updates (All instances update at 01:00 PST [10:00 CET] daily). Self-hosted users should update to the latest version to get the fix 🎉`
   }
   else if (payload.issue.state_reason === 'not_planned') {
-    message = `🗑 Issue ${renderIssueRef(issueUrl)} is no longer planned to be fixed. Check out the linked issue for more information.`
+    const lastMessage = getLastComment(octokitClient, issueUrl) || 'No information provided';
+    message = `🗑 Issue ${renderIssueRef(issueUrl)} is no longer planned to be fixed.\n> ${lastMessage}\nCheck out the linked issue for more information.`
   }
   const slack_threads = await getIssueThreadsFromIssue(issueUrl);
   for await (const slack_thread of slack_threads) {
