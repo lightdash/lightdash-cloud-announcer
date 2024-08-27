@@ -35,3 +35,38 @@ export const postCommentOnIssue = async (octokitClient, githubIssueUrl, comment)
     const { owner, repo, issueNumber } = issueUrlComponents(githubIssueUrl);
     await octokitClient.rest.issues.createComment({owner, repo, issue_number: issueNumber, body: comment});
 }
+
+/**
+ *
+ * @param {import("octokit").Octokit} octokitClient
+ * @param { string } githubIssueUrl
+ * @returns {Promise<string | undefined>}
+ */
+export const getLastComment = async (octokitClient, githubIssueUrl) => {
+    try {
+        const { owner, repo, issueNumber } = issueUrlComponents(githubIssueUrl);
+        const comments = await octokitClient.request(`GET /repos/${owner}/${repo}/issues/comments`, {
+            owner,
+            repo,
+            sort:'created', 
+            direction: 'desc', 
+            per_page: '1',
+            headers: {
+                'X-GitHub-Api-Version': '2022-11-28'
+            }
+            });
+
+            if (comments.data.length > 0) {
+                // The last comment is the first item due to the sorting
+                const lastComment = comments.data[0];
+                return lastComment.body;
+              } else {
+                console.log('No comments found.');
+                return undefined;
+              }
+
+    } catch (e) {
+        console.error('Unable to get comments', e)
+        return undefined
+    }
+}
