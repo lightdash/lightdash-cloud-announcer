@@ -104,7 +104,7 @@ githubWebhooks.on('issues.closed', async({ payload }) => {
     message = `✅ We've fixed ${renderIssueRef(issueUrl)}: _${payload.issue.title}_\n\nLightdash Cloud users will automatically get the fix once your instance updates (All instances update at 01:00 PST [10:00 CET] daily). Self-hosted users should update to the latest version to get the fix 🎉`
   }
   else if (payload.issue.state_reason === 'not_planned') {
-    const lastMessage = getLastComment(octokitClient, issueUrl) || 'No information provided';
+    const lastMessage = (await getLastComment(octokitClient, issueUrl)) || 'No information provided';
     message = `🗑 Issue ${renderIssueRef(issueUrl)} is no longer planned to be fixed.\n> ${lastMessage}\nCheck out the linked issue for more information.`
   }
   const slack_threads = await getIssueThreadsFromIssue(issueUrl);
