@@ -25,7 +25,7 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js",
-    "expose": "lt --port 3001 --subdomain cloudy-dev-crazy-cayote"
+    "expose": "cloudflared tunnel run --url http://localhost:3001 oliver"
   },
   "devDependencies": {
     "localtunnel": "^2.0.2",

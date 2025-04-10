@@ -9,6 +9,8 @@ import {
   countAllOpenIssuesInChannel,
   setIssueIsClosed,
   allOpenIssueUrlsInChannel, getSlackBotToken,
+  getCurrentFirstResponder,
+  setFirstResponder,
 } from "./db.js";
 const { App, ExpressReceiver } = bolt;
 import octokit from '@octokit/webhooks';
@@ -366,6 +368,217 @@ app.shortcut('link_issue', async ({shortcut, ack, client, say}) => {
     value: totalIssues,
     link: issueListHtmlUrl,
   }]);
+});
+
+// First responder command
+app.command(/\/first-responder(-dev)?|\/fr(-dev)?/, async ({ command, ack, respond, client }) => {
+  await ack();
+  try {
+    const teamId = getTeamId(command);
+    const currentResponder = await getCurrentFirstResponder(teamId);
+    
+    let message = "There is currently no first responder assigned.";
+    if (currentResponder) {
+      const userInfo = await client.users.info({
+        user: currentResponder.slack_user_id
+      });
+      const duration = Math.floor((Date.now() - new Date(currentResponder.started_at).getTime()) / (1000 * 60 * 60));
+      message = `🎯 <@${currentResponder.slack_user_id}> (${userInfo.user.real_name}) is first responder! 🌟\n\nThey've been helping out for ${duration} hours 🕒`;
+    }
+
+    await respond({
+      text: message,
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: message
+          }
+        },
+        {
+          type: "actions",
+          elements: [
+            {
+              type: "button",
+              text: {
+                type: "plain_text",
+                text: "I'll be first responder",
+                emoji: true
+              },
+              action_id: "become_first_responder",
+              style: "primary"
+            },
+            {
+              type: "button",
+              text: {
+                type: "plain_text",
+                text: "Select another user",
+                emoji: true
+              },
+              action_id: "select_first_responder"
+            }
+          ]
+        }
+      ]
+    });
+  } catch (error) {
+    console.error('Error in first responder command:', error);
+    Sentry.captureException(error);
+    await respond({
+      text: `Sorry, there was an error processing your request: ${error.message}`,
+      response_type: 'ephemeral'
+    });
+  }
+});
+
+// Handle "I'll be first responder" button
+app.action('become_first_responder', async ({ action, ack, body, respond }) => {
+  await ack();
+  try {
+    const teamId = getTeamId(body);
+    await setFirstResponder(teamId, body.user.id);
+    await respond({
+      text: `You are now the first responder!`,
+      replace_original: true
+    });
+  } catch (error) {
+    console.error('Error in become_first_responder action:', error);
+    Sentry.captureException(error);
+    await respond({
+      text: `Sorry, there was an error setting you as first responder: ${error.message}`,
+      response_type: 'ephemeral'
+    });
+  }
+});
+
+// Handle "Select another user" button
+app.action('select_first_responder', async ({ ack, body, client, respond }) => {
+  try {
+    await ack();
+    const view = {
+      type: "modal",
+      callback_id: "select_first_responder_modal",
+      private_metadata: body.channel.id,
+      title: {
+        type: "plain_text",
+        text: "Select First Responder",
+        emoji: true
+      },
+      submit: {
+        type: "plain_text",
+        text: "Submit",
+        emoji: true
+      },
+      close: {
+        type: "plain_text",
+        text: "Cancel",
+        emoji: true
+      },
+      blocks: [
+        {
+          type: "input",
+          block_id: "user_select",
+          element: {
+            type: "users_select",
+            placeholder: {
+              type: "plain_text",
+              text: "Select a user",
+              emoji: true
+            },
+            action_id: "users_select-action"
+          },
+          label: {
+            type: "plain_text",
+            text: "Choose the new first responder",
+            emoji: true
+          }
+        }
+      ]
+    };
+
+    await client.views.open({
+      trigger_id: body.trigger_id,
+      view: view
+    });
+  } catch (error) {
+    console.error('Error opening first responder selection modal:', error);
+    Sentry.captureException(error);
+    await respond({
+      text: `Sorry, there was an error opening the selection modal: ${error.message}`,
+      response_type: 'ephemeral'
+    });
+  }
+});
+
+// Handle first responder modal submission
+app.view('select_first_responder_modal', async ({ ack, body, view, client }) => {
+  try {
+    const selectedUser = view.state.values.user_select['users_select-action'].selected_user;
+    const teamId = getTeamId(body);
+    await setFirstResponder(teamId, selectedUser);
+    
+    // Update the modal with a confirmation message via ack
+    await ack({
+      response_action: "update",
+      view: {
+        type: "modal",
+        title: {
+          type: "plain_text",
+          text: "First Responder Updated",
+          emoji: true
+        },
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `✅ <@${selectedUser}> is now the first responder!`
+            }
+          },
+        ],
+        close: {
+          type: "plain_text",
+          text: "Ok",
+          emoji: true
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error in select_first_responder_modal submission:', error);
+    Sentry.captureException(error);
+    
+    // Update the modal with an error message via ack
+    await ack({
+      response_action: "update",
+      view: {
+        type: "modal",
+        title: {
+          type: "plain_text",
+          text: "Error",
+          emoji: true
+        },
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `❌ Sorry, there was an error setting the first responder: ${error.message}`
+            }
+          },
+          {
+            type: "context",
+            elements: [
+              {
+                type: "mrkdwn",
+                text: "Please try again or contact an administrator."
+              }
+            ]
+          }
+        ]
+      }
+    });
+  }
 });
 
 expressReceiver.app.use(createNodeMiddleware(githubWebhooks));

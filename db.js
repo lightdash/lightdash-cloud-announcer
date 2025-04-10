@@ -164,3 +164,28 @@ export const deleteInstallation = async (installQuery) => {
     }
     await knex('slack_auth_tokens').delete().where('slack_team_id', teamId);
 }
+
+/**
+ * @param {string} slackTeamId
+ * @returns {Promise<{slack_user_id: string, started_at: Date} | null>}
+ */
+export const getCurrentFirstResponder = async (slackTeamId) => {
+    const row = await knex('first_responders')
+        .select('slack_user_id', 'started_at')
+        .where('slack_team_id', slackTeamId)
+        .orderBy('started_at', 'desc')
+        .first();
+    return row || null;
+}
+
+/**
+ * @param {string} slackTeamId
+ * @param {string} slackUserId
+ * @returns {Promise<void>}
+ */
+export const setFirstResponder = async (slackTeamId, slackUserId) => {
+    await knex('first_responders').insert({
+        slack_team_id: slackTeamId,
+        slack_user_id: slackUserId,
+    });
+}
