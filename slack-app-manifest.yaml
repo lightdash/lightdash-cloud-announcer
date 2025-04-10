@@ -3,10 +3,6 @@ display_information:
   description: Cloudy - our community helpbot
   background_color: "#000000"
 features:
-  app_home:
-    home_tab_enabled: false
-    messages_tab_enabled: false
-    messages_tab_read_only_enabled: false
   bot_user:
     display_name: "[dev] Cloudy"
     always_online: true
@@ -15,19 +11,25 @@ features:
       type: message
       callback_id: link_issue
       description: Link a github issue to this thread
-    # - name: Assign to...
-    #   type: message
-    #   callback_id: assign_thread
-    #   description: Assign this support thread to me
   slash_commands:
     - command: /cloudy-dev
-      url: https://cloudy-dev-crazy-cayote.loca.lt/slack/events
+      url: https://oliver.lightdash.dev/slack/events
       description: Our community helpbot
-      usage_hint: list, help
+      usage_hint: list, help, link
+      should_escape: true
+    - command: /first-responder-dev
+      url: https://oliver.lightdash.dev/slack/events
+      description: Manage the first responder for your team
+      usage_hint: help
+      should_escape: true
+    - command: /fr-dev
+      url: https://oliver.lightdash.dev/slack/events
+      description: Shortcut for first responder command
+      usage_hint: help
       should_escape: true
 oauth_config:
   redirect_urls:
-    - https://cloudy-dev-crazy-cayote.loca.lt/slack/oauth_redirect
+    - https://oliver.lightdash.dev/slack/oauth_redirect
   scopes:
     bot:
       - app_mentions:read
@@ -43,13 +45,13 @@ oauth_config:
       - users.profile:read
 settings:
   event_subscriptions:
-    request_url: https://cloudy-dev-crazy-cayote.loca.lt/slack/events
+    request_url: https://oliver.lightdash.dev/slack/events
     bot_events:
       - app_mention
       - message.channels
   interactivity:
     is_enabled: true
-    request_url: https://cloudy-dev-crazy-cayote.loca.lt/slack/events
+    request_url: https://oliver.lightdash.dev/slack/events
   org_deploy_enabled: false
   socket_mode_enabled: false
   token_rotation_enabled: false
