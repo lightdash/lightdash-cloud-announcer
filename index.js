@@ -11,6 +11,7 @@ import {
   allOpenIssueUrlsInChannel, getSlackBotToken,
   getCurrentFirstResponder,
   setFirstResponder,
+  getFirstResponderStats,
 } from "./db.js";
 const { App, ExpressReceiver } = bolt;
 import octokit from '@octokit/webhooks';
@@ -375,6 +376,67 @@ app.command(/\/first-responder(-dev)?|\/fr(-dev)?/, async ({ command, ack, respo
   await ack();
   try {
     const teamId = getTeamId(command);
+    
+    // Check for stats subcommand
+    const args = minimist(parseArgsStringToArgv(command.text));
+    if ((args._ || []).includes('stats')) {
+      const stats = await getFirstResponderStats(teamId);
+      if (stats.length === 0) {
+        await respond({
+          text: "No first responder activity in the last 7 days."
+        });
+        return;
+      }
+      
+      // Format the stats message
+      let blocks = [
+        {
+          type: "header",
+          text: {
+            type: "plain_text",
+            text: "📊 First Responder Stats (Last 7 Days)",
+            emoji: true
+          }
+        },
+        {
+          type: "divider"
+        }
+      ];
+      
+      // Add each user's stats to the blocks
+      stats.forEach((stat, index) => {
+        const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👏";
+        
+        blocks.push({
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `${medal} *<@${stat.slack_user_id}>*: *${stat.total_hours}* hours`
+          }
+        });
+      });
+      
+      // Add total support hours
+      const totalHours = stats.reduce((sum, stat) => sum + stat.total_hours, 0);
+      blocks.push({
+        type: "divider"
+      });
+      blocks.push({
+        type: "context",
+        elements: [
+          {
+            type: "mrkdwn",
+            text: `*Total team support: ${Math.round(totalHours * 10) / 10} hours in the last 7 days* 💪`
+          }
+        ]
+      });
+      
+      await respond({
+        blocks: blocks
+      });
+      return;
+    }
+    
     const currentResponder = await getCurrentFirstResponder(teamId);
     
     let message = "There is currently no first responder assigned.";
@@ -433,11 +495,13 @@ app.command(/\/first-responder(-dev)?|\/fr(-dev)?/, async ({ command, ack, respo
 });
 
 // Handle "I'll be first responder" button
-app.action('become_first_responder', async ({ action, ack, body, respond }) => {
+app.action('become_first_responder', async ({ action, ack, body, respond, client }) => {
   await ack();
   try {
     const teamId = getTeamId(body);
     await setFirstResponder(teamId, body.user.id);
+    
+    
     await respond({
       text: `You are now the first responder!`,
       replace_original: true
@@ -515,8 +579,20 @@ app.action('select_first_responder', async ({ ack, body, client, respond }) => {
 app.view('select_first_responder_modal', async ({ ack, body, view, client }) => {
   try {
     const selectedUser = view.state.values.user_select['users_select-action'].selected_user;
+    const settingUserId = body.user.id;
     const teamId = getTeamId(body);
     await setFirstResponder(teamId, selectedUser);
+    
+    // Only send DM if someone else set them as first responder
+    if (selectedUser !== settingUserId) {
+      const settingUserInfo = await client.users.info({
+        user: settingUserId
+      });
+      await client.chat.postMessage({
+        channel: selectedUser,
+        text: `You have been assigned as the first responder by <@${settingUserId}> (${settingUserInfo.user.real_name})! Thank you for helping users.`
+      });
+    }
     
     // Update the modal with a confirmation message via ack
     await ack({
