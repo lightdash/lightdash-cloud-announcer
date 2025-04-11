@@ -3,6 +3,10 @@ display_information:
   description: Cloudy - our community helpbot
   background_color: "#000000"
 features:
+  app_home:
+    home_tab_enabled: false
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
   bot_user:
     display_name: "[dev] Cloudy"
     always_online: true
@@ -20,12 +24,12 @@ features:
     - command: /first-responder-dev
       url: https://oliver.lightdash.dev/slack/events
       description: Manage the first responder for your team
-      usage_hint: help
+      usage_hint: help, stats
       should_escape: true
     - command: /fr-dev
       url: https://oliver.lightdash.dev/slack/events
       description: Shortcut for first responder command
-      usage_hint: help
+      usage_hint: help, stats
       should_escape: true
 oauth_config:
   redirect_urls:

@@ -189,3 +189,44 @@ export const setFirstResponder = async (slackTeamId, slackUserId) => {
         slack_user_id: slackUserId,
     });
 }
+
+/**
+ * @param {string} slackTeamId
+ * @returns {Promise<Array<{slack_user_id: string, total_hours: number}>>}
+ */
+export const getFirstResponderStats = async (slackTeamId) => {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    const rows = await knex('first_responders')
+        .select('slack_user_id', 'started_at')
+        .where('slack_team_id', slackTeamId)
+        .where('started_at', '>=', sevenDaysAgo)
+        .orderBy('started_at');
+    
+    const userStats = {};
+    
+    // Calculate time spent as first responder for each shift
+    for (let i = 0; i < rows.length; i++) {
+        const currentRow = rows[i];
+        const nextRow = i < rows.length - 1 ? rows[i + 1] : null;
+        
+        const userId = currentRow.slack_user_id;
+        const startTime = new Date(currentRow.started_at).getTime();
+        const endTime = nextRow 
+            ? new Date(nextRow.started_at).getTime() 
+            : Date.now();
+        
+        const hoursSpent = (endTime - startTime) / (1000 * 60 * 60);
+        
+        userStats[userId] = (userStats[userId] || 0) + hoursSpent;
+    }
+    
+    // Convert to array and sort by hours (descending)
+    return Object.entries(userStats)
+        .map(([slack_user_id, total_hours]) => ({
+            slack_user_id,
+            total_hours: Math.round(total_hours * 10) / 10 // Round to 1 decimal place
+        }))
+        .sort((a, b) => b.total_hours - a.total_hours);
+}
