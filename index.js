@@ -18,7 +18,7 @@ import octokit from '@octokit/webhooks';
 const { Webhooks, createNodeMiddleware } = octokit;
 import minimist from 'minimist';
 import * as StringArgv from 'string-argv';
-import {getTeamId} from "./slack.js";
+import {getTeamId, updateFirstResponderUserGroup} from "./slack.js";
 const {parseArgsStringToArgv} = StringArgv
 import { Octokit } from 'octokit';
 import {getIssueStatus, postCommentOnIssue, getLastComment} from "./github.js";
@@ -54,6 +54,8 @@ const expressReceiver = new ExpressReceiver({
     "users:read.email",
     "users:read",
     "users.profile:read",
+    "usergroups:write",
+    "usergroups:read",
   ],
   installationStore: {
     storeInstallation: createInstallation,
@@ -501,6 +503,8 @@ app.action('become_first_responder', async ({ action, ack, body, respond, client
     const teamId = getTeamId(body);
     await setFirstResponder(teamId, body.user.id);
     
+    // Update the first-responder user group
+    await updateFirstResponderUserGroup(client, body.user.id);
     
     await respond({
       text: `You are now the first responder!`,
@@ -582,6 +586,9 @@ app.view('select_first_responder_modal', async ({ ack, body, view, client }) => 
     const settingUserId = body.user.id;
     const teamId = getTeamId(body);
     await setFirstResponder(teamId, selectedUser);
+    
+    // Update the first-responder user group
+    await updateFirstResponderUserGroup(client, selectedUser);
     
     // Only send DM if someone else set them as first responder
     if (selectedUser !== settingUserId) {

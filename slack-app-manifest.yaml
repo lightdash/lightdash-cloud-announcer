@@ -47,6 +47,8 @@ oauth_config:
       - users:read
       - users:read.email
       - users.profile:read
+      - usergroups:write
+      - usergroups:read
 settings:
   event_subscriptions:
     request_url: https://oliver.lightdash.dev/slack/events
