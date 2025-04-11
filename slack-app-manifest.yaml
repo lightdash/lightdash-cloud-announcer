@@ -53,6 +53,7 @@ settings:
     bot_events:
       - app_mention
       - message.channels
+      - app_uninstalled
   interactivity:
     is_enabled: true
     request_url: https://oliver.lightdash.dev/slack/events

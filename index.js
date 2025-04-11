@@ -663,6 +663,17 @@ expressReceiver.app.get('/healthz', (_, res) => {
   res.status(200).send();
 })
 
+app.event('app_uninstalled', async ({ event, context }) => {
+  try {
+    const teamId = context.teamId;
+    await deleteInstallation({ teamId });
+    console.log(`App uninstalled from team ${teamId}, installation deleted`);
+  } catch (error) {
+    console.error(`Error deleting installation for team ${context.teamId}:`, error);
+    Sentry.captureException(error);
+  }
+});
+
 Sentry.setupExpressErrorHandler(expressReceiver.app);
 
 (async () => {
