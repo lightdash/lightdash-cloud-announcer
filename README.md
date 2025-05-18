@@ -45,27 +45,32 @@ RUDDERSTACK_DATA_PLANE_URL=[Get your data plane URL here](https://app.rudderstac
 
 ```bash
 # Install all the project's dependencies
-yarn
+npm install
 
 # Run the app locally
-yarn start
+npm run dev
+
+# build and start
+npm run build && npm start
 ```
 
-### 2. Run localtunnel and update URLs
+### 2. Run cloudflared and update URLs
 
-```shell
-yarn expose
+[read more on cloudflared and custom lightdash.dev domains here](https://www.notion.so/lightdash/Generate-public-development-URLs-with-cloudflared-tunnel-proxy-13fa63207a7a800d8029e8fd36499752)
+
+```bash
+npm expose irakli # exposes irakli.lightdash.dev domain
 ```
 
-Now you need to update the following URLs with the last `Forwarding` url that localtunnel returns:
+Now you need to update the URLs with the cloudflared URL:
 
 - Update the `SITE_ENV` environment variable
-- Update all domains in the `/slack-app-manifest.yaml`
+- Update all domains in the `/slack-app-manifest.json`
 
 ### 3. Configure slack to use our app
 
 - Create or update a slack app at `https://api.slack.com`
-- Copy in the `slack-app-manifest.yaml` (change command names and bot name if in dev)
+- Copy in the `slack-app-manifest.json` (change command names and bot name if in dev)
 - Get all the secrets from the "basic information" and update:
   - `SLACK_SIGNING_SECRET`
   - `SLACK_CLIENT_ID`
@@ -92,7 +97,7 @@ GITHUB_ACCESS_TOKEN=a personal access token for GitHub
 ### 6. Run the app locally
 
 ```shell
-yarn dev
+npm run dev
 ```
 
 ### 7. Verify webhooks
@@ -107,8 +112,9 @@ In Slack under "event subscriptions" check you can receive the ping event:
 
 ### 8. Install into your workspace
 
-Visit `https://[ngrok domain]/slack/oauth_redirect` to install the app correctly. This won't work through the api.
-slack.com web UI.
+visit https://yourdomain.com/slack/install
+
+:info: installing from the slack app settings won't work.
 
 ### Production
 
@@ -120,5 +126,5 @@ slack.com web UI.
 #### Add migration
 
 ```shell
-yarn knex migrate:make <migration_name> --env production
+npm knex -- migrate:make <migration_name> --env production
 ```
