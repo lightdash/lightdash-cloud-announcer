@@ -60,12 +60,12 @@ yarn expose
 Now you need to update the following URLs with the last `Forwarding` url that localtunnel returns:
 
 - Update the `SITE_ENV` environment variable
-- Update all domains in the `/slack-app-manifest.yaml`
+- Update all domains in the `/slack-app-manifest.json`
 
 ### 3. Configure slack to use our app
 
 - Create or update a slack app at `https://api.slack.com`
-- Copy in the `slack-app-manifest.yaml` (change command names and bot name if in dev)
+- Copy in the `slack-app-manifest.json` (change command names and bot name if in dev)
 - Get all the secrets from the "basic information" and update:
   - `SLACK_SIGNING_SECRET`
   - `SLACK_CLIENT_ID`
@@ -107,8 +107,9 @@ In Slack under "event subscriptions" check you can receive the ping event:
 
 ### 8. Install into your workspace
 
-Visit `https://[ngrok domain]/slack/oauth_redirect` to install the app correctly. This won't work through the api.
-slack.com web UI.
+visit https://yourdomain.com/slack/install
+
+:info: installing from the slack app settings won't work.
 
 ### Production
 
