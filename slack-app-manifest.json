@@ -22,6 +22,12 @@
         "description": "Link a github issue to this thread"
       },
       {
+        "name": "Summarize thread",
+        "type": "message",
+        "callback_id": "summarize_thread",
+        "description": "Summarize the thread"
+      },
+      {
         "name": "Draft issues",
         "type": "message",
         "callback_id": "draft_issues",

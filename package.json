@@ -10,6 +10,9 @@
     "node": "22.15.1"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^1.3.22",
+    "@mastra/core": "^0.10.0",
+    "@mastra/loggers": "^0.10.0",
     "@octokit/auth-token": "^3.0.2",
     "@octokit/webhooks": "^10.0.3",
     "@rudderstack/rudder-sdk-node": "^1.0.14",
@@ -22,10 +25,11 @@
     "octokit": "^2.0.10",
     "pg": "^8.16.0",
     "string-argv": "^0.3.2",
-    "zod": "^3.25.0-beta.20250517T081109"
+    "zod": "^3.25.17"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "build": "tsc",
     "start": "node ./src/index.js",
     "dev": "tsx watch ./src/index.ts",
     "knex": "tsx ./node_modules/knex/bin/cli.js",
@@ -38,7 +42,9 @@
   "devDependencies": {
     "@biomejs/biome": "2.0.0-beta.4",
     "@tsconfig/strictest": "^2.0.5",
+    "@types/node": "^22.15.18",
     "localtunnel": "^2.0.2",
+    "mastra": "^0.6.3",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }

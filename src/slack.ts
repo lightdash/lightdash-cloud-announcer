@@ -34,6 +34,7 @@ import {
   slackTryJoin,
   updateFirstResponderUserGroup,
 } from "./slack_utils.js";
+import { summarizeConversation } from "./ai.js";
 
 const initSlackApp = (slackApp: App) => {
   slackApp.command(/\/cloudy(-dev)?/, async ({ command, ack, respond, client }) => {
@@ -618,6 +619,78 @@ const initSlackApp = (slackApp: App) => {
       console.error(`Error deleting installation for team ${context.teamId}:`, error);
       Sentry.captureException(error);
     }
+  });
+
+  slackApp.shortcut("summarize_thread", async ({ shortcut, ack, client }) => {
+    await ack();
+
+    if (shortcut.type !== "message_action") {
+      throw new Error("Expected message action shortcut");
+    }
+
+    const threadOrMessageTs = shortcut.message["thread_ts"] || shortcut.message_ts;
+    const channelId = shortcut.channel.id;
+
+    const allMessages = await client.conversations.replies({
+      channel: channelId,
+      ts: threadOrMessageTs,
+    });
+
+    const messagesWithAuthor: {
+      author: string;
+      message: string;
+    }[] =
+      allMessages.messages?.map((message) => ({
+        author: message.user ?? "",
+        message: message.text ?? "",
+      })) ?? [];
+
+    const summaryResult = await summarizeConversation(
+      messagesWithAuthor.map((m) => `${m.author}: ${m.message}`).join("\n"),
+    );
+
+    const summary = summaryResult.object;
+
+    const severityEmojis = {
+      low: "🟢",
+      medium: "🟠",
+      high: "🔴",
+    } as const;
+    const angerEmojis = {
+      none: "😌",
+      mild: "😠",
+      strong: "😡",
+    } as const;
+
+    client.chat.postEphemeral({
+      channel: channelId,
+      thread_ts: threadOrMessageTs,
+      text: summary.summary,
+      user: shortcut.user.id,
+      blocks: [
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: summary.summary },
+        },
+        {
+          type: "context",
+          elements: [
+            {
+              type: "mrkdwn",
+              text: `*Resolved:* ${summary.resolved ? "✅ Yes" : "❌ No"}`,
+            },
+            {
+              type: "mrkdwn",
+              text: `*Severity:* ${severityEmojis[summary.severity]}`,
+            },
+            {
+              type: "mrkdwn",
+              text: `*Anger Level:* ${angerEmojis[summary.angerLevel]}`,
+            },
+          ],
+        },
+      ],
+    });
   });
 
   slackApp.shortcut("draft_issues", async ({ ack }) => {
