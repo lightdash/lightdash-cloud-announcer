@@ -1,7 +1,10 @@
+import { embed } from "ai";
 import type { Webhooks } from "@octokit/webhooks";
 import { octokitClient, slackApp } from "./clients.js";
 import { getIssueThreadsFromIssue, setIssueIsClosed } from "./db.js";
 import { getLastComment, renderIssueRef } from "./github_utils.js";
+import { knex } from "./knexfile.js";
+import { openai } from "@ai-sdk/openai";
 
 const initGithubWebhooks = (githubWebhooks: Webhooks) => {
   githubWebhooks.on("issues.assigned", async ({ payload }) => {
@@ -69,6 +72,50 @@ const initGithubWebhooks = (githubWebhooks: Webhooks) => {
       });
     }
   });
+};
+
+export const syncGithubIssues = async ({ owner, repo }: { owner: string; repo: string }) => {
+  const issues = await octokitClient.paginate("GET /repos/{owner}/{repo}/issues", {
+    owner,
+    repo,
+    sort: "created",
+    direction: "desc",
+    state: "all",
+    per_page: 100,
+    // 3 month ago
+    since: new Date(Date.now() - 3 * 30 * 24 * 60 * 60 * 1000).toISOString(),
+  });
+
+  for (const issue of issues.filter((i) => i.pull_request === undefined)) {
+    const body = issue.body ?? issue.body_text ?? issue.body_html ?? null;
+
+    await knex("github_issues")
+      .insert({
+        owner: owner,
+        repo: repo,
+        issue_url: issue.html_url,
+        issue_id: issue.number,
+        type: "issue",
+        title: issue.title,
+        description: issue.body ?? issue.body_text ?? issue.body_html ?? null,
+        labels: issue.labels.map((l) => (typeof l === "string" ? l : l.name)).filter((l) => l !== undefined),
+        milestone: issue.milestone?.title ?? null,
+        status: issue.state,
+        embeddings: `[${(
+          await embed({
+            model: openai.embedding("text-embedding-3-small"),
+            value: JSON.stringify({
+              title: issue.title,
+              labels: issue.labels.map((l) => (typeof l === "string" ? l : l.name)).filter((l) => l !== undefined),
+              milestone: issue.milestone?.title ?? null,
+              description: body,
+            }),
+          })
+        ).embedding.join(",")}]`,
+      })
+      .onConflict(["owner", "repo", "issue_id"])
+      .merge();
+  }
 };
 
 export default initGithubWebhooks;

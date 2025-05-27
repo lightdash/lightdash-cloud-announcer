@@ -21,9 +21,25 @@ declare module "knex/types/tables.js" {
     is_closed: boolean | null;
   }
 
+  interface GithubIssue {
+    id: number;
+    owner: string;
+    repo: string;
+    issue_id: number;
+    issue_url: string;
+    type: string;
+    title: string;
+    description: string | null;
+    labels: string[] | null;
+    milestone: string | null;
+    status: string | null;
+    embeddings: string | null;
+  }
+
   interface Tables {
     first_responders: Knex.CompositeTableType<FirstResponder, Omit<FirstResponder, "id" | "started_at">>;
     slack_auth_tokens: Knex.CompositeTableType<SlackAuthToken>;
     github_issue_slack_threads: Knex.CompositeTableType<GithubIssueSlackThread>;
+    github_issues: Knex.CompositeTableType<GithubIssue, Omit<GithubIssue, "id">, Partial<Omit<GithubIssue, "id">>>;
   }
 }
