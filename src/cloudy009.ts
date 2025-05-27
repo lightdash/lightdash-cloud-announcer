@@ -1,3 +1,4 @@
+import { embed } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { Agent, createStep, createWorkflow, Mastra } from "@mastra/core";
@@ -5,8 +6,9 @@ import { PinoLogger } from "@mastra/loggers";
 import type { KnownBlock } from "@slack/types";
 import type { WebClient } from "@slack/web-api";
 import type { MessageShortcut } from "@slack/bolt";
+import { knex } from "./knexfile.js";
 
-export const draftIssues = ({
+export const findGithubIssues = ({
   channelId,
   threadOrMessageTs,
   client,
@@ -17,32 +19,25 @@ export const draftIssues = ({
   client: WebClient;
   user: MessageShortcut["user"];
 }) => {
-  const cloudy008 = new Agent({
+  const owner = "lightdash";
+  const repo = "lightdash";
+
+  const cloudy009 = new Agent({
     model: openai("gpt-4o-mini"),
     name: "Cloudy008",
-    instructions: `You are Cloudy007, a helpful assistant that creates clear GitHub issue specs from Slack conversations.
+    instructions: `You are Cloudy009, a helpful assistant that searches for issues in GitHub based on the conversation history.
 
-  You help Lightdash support engineers by creating clear GitHub issue specs from Slack conversations.
+  You help Lightdash support engineers by searching for issues.
 
   Your job:
   - Read the entire Slack thread.
-  - Generate one or more GitHub issues with:
-    - A concise, descriptive title.
-    - A detailed description including key info, steps to reproduce (if bug), or feature details.
-    - Suggested labels (like bug, feature request, customer support).
-    - Always label it with Customer Support label.
-  - If the conversation is about a bug, include a detailed description of the bug, and steps to reproduce.
-  - if the conversation is about a feature request, include a detailed description of the feature, and why it's needed.
-  - A good new issue consists of:
-    - A concise, descriptive title, not all caps.
-    - A few sentences of description.
-    - Proper labels.
-    - A milestone if you believe 99% that it belongs to a milestone.
+  - Search for existing issues in GitHub based on the thread messages.
+  - Make a search query for the issues based on the thread messages.
   - Additional instructions:
     - Use code blocks and bullet point lists to make it more readable if needed.
     - ONLY USE SLACK FLAVOR OF MARKDOWN.
 
-  Make sure the issue spec is clear and actionable.
+  Make sure the search queries are clear and actionable.
   `,
   });
 
@@ -62,18 +57,27 @@ export const draftIssues = ({
       .describe("The conversation history"),
   });
 
+  const searchQuerySchema = z.object({
+    searchQueries: z.object({
+      title: z.string().describe("The title of the issue that should be searched for"),
+      description: z.string().describe("The description of the issue that should be searched for"),
+      labels: z.array(z.string()).describe("The labels of the issue that should be searched for"),
+      milestone: z.string().describe("The milestone of the issue that should be searched for"),
+    }),
+  });
+
   const issuesSchema = z.object({
     issues: z.array(
       z.object({
-        title: z.string().describe("Issue title"),
-        description: z.string().describe("Detailed issue description"),
-        labels: z.array(z.string()).describe("Labels for the issue"),
+        title: z.string().describe("The title of the issue"),
+        description: z.string().nullable().describe("The description of the issue"),
+        url: z.string().describe("The URL of the issue"),
       }),
     ),
   });
 
   const outputSchema = z.object({
-    created: z.boolean().describe("Whether the issues were created"),
+    searched: z.boolean().describe("Whether the issues were searched for"),
   });
 
   const getConversationHistory = createStep({
@@ -104,45 +108,78 @@ export const draftIssues = ({
     },
   });
 
-  const specIssues = createStep({
-    id: "specIssues",
-    description: "Create GitHub issues from the conversation history",
+  const generateSearchQueries = createStep({
+    id: "generateSearchQueries",
+    description: "Generate search queries for the issues",
     inputSchema: conversationHistorySchema,
-    outputSchema: issuesSchema,
+    outputSchema: searchQuerySchema,
     execute: async ({ inputData }) => {
-      const { object: issues } = await cloudy008.generate(
+      const { object: issues } = await cloudy009.generate(
         [
           {
             role: "user",
             content: `Create GitHub issues from the conversation history: ${JSON.stringify(inputData.conversationHistory, null, 2)}`,
           },
         ],
-        { output: issuesSchema },
+        { output: searchQuerySchema },
       );
 
       return issues;
     },
   });
 
-  const postIssues = createStep({
-    id: "specIssues",
-    description: "Create GitHub issues from the conversation history",
+  const searchForIssues = createStep({
+    id: "searchForIssues",
+    description: "Search for issues in GitHub",
+    inputSchema: searchQuerySchema,
+    outputSchema: issuesSchema,
+    execute: async ({ inputData }) => {
+      const embeddings = `[${(
+        await embed({
+          model: openai.embedding("text-embedding-3-small"),
+          value: JSON.stringify({
+            title: inputData.searchQueries.title,
+            labels: inputData.searchQueries.labels,
+            milestone: inputData.searchQueries.milestone,
+            description: inputData.searchQueries.description,
+          }),
+        })
+      ).embedding.join(",")}]`;
+
+      const issues = await knex
+        .select("*")
+        .from(function () {
+          // @ts-expect-error
+          this.select("title", "description", "issue_url", {
+            rank: knex.raw(`1 - (github_issues.embeddings <=> ?)`, [embeddings]),
+          })
+            .from("github_issues")
+            .where({ owner, repo })
+            .as("ranked_issues");
+        })
+        .where("rank", ">", 0.66)
+        .orderBy("rank", "desc")
+        .limit(3);
+
+      console.dir(issues, { depth: null });
+
+      const mappedIssues = issues.map((issue) => ({
+        title: issue.title,
+        description: issue.description,
+        url: issue.issue_url,
+      }));
+
+      return { issues: mappedIssues };
+    },
+  });
+
+  const postFoundIssues = createStep({
+    id: "postFoundIssues",
+    description: "Post the found issues to the channel",
     inputSchema: issuesSchema,
     outputSchema: outputSchema,
     execute: async ({ inputData, runtimeContext }) => {
-      function toQueryString(params: Record<string, string>) {
-        return Object.entries(params)
-          .map(([key, val]) => `${encodeURIComponent(key)}=${encodeURIComponent(val)}`)
-          .join("&");
-      }
-
       const blocks = inputData.issues.reduce<KnownBlock[]>((acc, issue) => {
-        const url = `https://github.com/lightdash/lightdash/issues/new?${toQueryString({
-          title: issue.title,
-          body: issue.description,
-          labels: issue.labels.join(","),
-        })}`;
-
         acc.push(
           {
             type: "section",
@@ -156,8 +193,8 @@ export const draftIssues = ({
             elements: [
               {
                 type: "button",
-                text: { type: "plain_text", text: "Create GitHub Issue" },
-                url,
+                text: { type: "plain_text", text: "Open in GitHub" },
+                url: issue.url,
               },
             ],
           },
@@ -177,15 +214,15 @@ export const draftIssues = ({
         thread_ts: threadOrMessageTs as string,
         text: "GitHub issue specs generated from the conversation:",
         blocks,
-        icon_emoji: ":rocket:",
+        icon_emoji: ":female-detective:",
         user: user.id,
       });
 
-      return { created: true };
+      return { searched: true };
     },
   });
 
-  const doNotCreateIssues = createStep({
+  const doNotSearchForIssues = createStep({
     id: "failStep",
     inputSchema: issuesSchema,
     outputSchema: outputSchema,
@@ -200,11 +237,11 @@ export const draftIssues = ({
       await client.chat.postMessage({
         channel: channelId as string,
         thread_ts: threadOrMessageTs as string, // TODO: fixme...
-        text: "Conversation does not contain enough information to create an issue.",
+        text: "Conversation does not contain enough information to find issues.",
         icon_emoji: ":warning:",
       });
 
-      return { created: false };
+      return { searched: false };
     },
   });
 
@@ -212,18 +249,19 @@ export const draftIssues = ({
     id: "createGithubIssuesFromConversation",
     inputSchema: inputSchema,
     outputSchema: issuesSchema,
-    steps: [getConversationHistory, specIssues, postIssues, doNotCreateIssues],
+    steps: [getConversationHistory, generateSearchQueries, searchForIssues, postFoundIssues, doNotSearchForIssues],
   })
     .then(getConversationHistory)
-    .then(specIssues)
+    .then(generateSearchQueries)
+    .then(searchForIssues)
     .branch([
-      [async ({ inputData }) => inputData.issues.length > 0, postIssues],
-      [async ({ inputData }) => inputData.issues.length === 0, doNotCreateIssues],
+      [async ({ inputData }) => inputData.issues.length > 0, postFoundIssues],
+      [async ({ inputData }) => inputData.issues.length === 0, doNotSearchForIssues],
     ])
     .commit();
 
   const mastra = new Mastra({
-    agents: { cloudy008 },
+    agents: { cloudy009 },
     workflows: { createGithubIssuesFromConversation },
     logger: new PinoLogger({
       name: "createGithubIssuesFromConversation",

@@ -36,6 +36,7 @@ import {
 } from "./slack_utils.js";
 import { summarizeConversation } from "./cloudy007.js";
 import { draftIssues } from "./cloudy008.js";
+import { findGithubIssues } from "./cloudy009.js";
 
 const initSlackApp = (slackApp: App) => {
   slackApp.command(/\/cloudy(-dev)?/, async ({ command, ack, respond, client }) => {
@@ -704,6 +705,19 @@ const initSlackApp = (slackApp: App) => {
     const channelId = shortcut.channel.id;
 
     await draftIssues({ channelId, threadOrMessageTs, client, user: shortcut.user });
+  });
+
+  slackApp.shortcut("find_issues", async ({ ack, shortcut, client }) => {
+    await ack();
+
+    if (shortcut.type !== "message_action") {
+      throw new Error("Expected message action shortcut");
+    }
+
+    const threadOrMessageTs = shortcut.message["thread_ts"] || shortcut.message_ts;
+    const channelId = shortcut.channel.id;
+
+    await findGithubIssues({ channelId, threadOrMessageTs, client, user: shortcut.user });
   });
 };
 
