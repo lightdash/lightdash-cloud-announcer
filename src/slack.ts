@@ -34,7 +34,8 @@ import {
   slackTryJoin,
   updateFirstResponderUserGroup,
 } from "./slack_utils.js";
-import { summarizeConversation } from "./ai.js";
+import { summarizeConversation } from "./cloudy007.js";
+import { draftIssues } from "./cloudy008.js";
 
 const initSlackApp = (slackApp: App) => {
   slackApp.command(/\/cloudy(-dev)?/, async ({ command, ack, respond, client }) => {
@@ -645,11 +646,9 @@ const initSlackApp = (slackApp: App) => {
         message: message.text ?? "",
       })) ?? [];
 
-    const summaryResult = await summarizeConversation(
+    const { object: summary } = await summarizeConversation(
       messagesWithAuthor.map((m) => `${m.author}: ${m.message}`).join("\n"),
     );
-
-    const summary = summaryResult.object;
 
     const severityEmojis = {
       low: "🟢",
@@ -665,6 +664,7 @@ const initSlackApp = (slackApp: App) => {
     client.chat.postEphemeral({
       channel: channelId,
       thread_ts: threadOrMessageTs,
+      icon_emoji: ":writing_hand:",
       text: summary.summary,
       user: shortcut.user.id,
       blocks: [
@@ -693,8 +693,17 @@ const initSlackApp = (slackApp: App) => {
     });
   });
 
-  slackApp.shortcut("draft_issues", async ({ ack }) => {
+  slackApp.shortcut("draft_issues", async ({ ack, shortcut, client }) => {
     await ack();
+
+    if (shortcut.type !== "message_action") {
+      throw new Error("Expected message action shortcut");
+    }
+
+    const threadOrMessageTs = shortcut.message["thread_ts"] || shortcut.message_ts;
+    const channelId = shortcut.channel.id;
+
+    await draftIssues({ channelId, threadOrMessageTs, client, user: shortcut.user });
   });
 };
 

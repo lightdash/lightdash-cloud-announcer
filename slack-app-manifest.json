@@ -28,6 +28,12 @@
         "description": "Summarize the thread"
       },
       {
+        "name": "Find issues",
+        "type": "message",
+        "callback_id": "find_issues",
+        "description": "Find github issues"
+      },
+      {
         "name": "Draft issues",
         "type": "message",
         "callback_id": "draft_issues",
@@ -69,6 +75,7 @@
         "channels:join",
         "channels:read",
         "chat:write",
+        "chat:write.customize",
         "commands",
         "usergroups:write",
         "users.profile:read",
