@@ -1,17 +1,17 @@
 {
   "extends": "@tsconfig/strictest/tsconfig.json",
   "compilerOptions": {
-    "rootDir": "./src",
     "outDir": "./dist",
+    "rootDir": "./src",
     "target": "ESNext",
     "module": "NodeNext",
     "moduleResolution": "nodenext",
     "verbatimModuleSyntax": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "allowJs": true,
+    "checkJs": false
   },
-  "include": [
-    "src/**/*.ts"
-  ],
+  "include": ["src"]
 }

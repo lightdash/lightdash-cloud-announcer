@@ -1,6 +1,6 @@
 import type { Webhooks } from "@octokit/webhooks";
 import { octokitClient, slackApp } from "./clients.js";
-import { getIssueThreadsFromIssue, setIssueIsClosed } from "./db.js";
+import { getIssueThreadsFromIssue, setIssueIsClosed } from "./db/db.js";
 import { getLastComment, renderIssueRef } from "./github_utils.js";
 
 const initGithubWebhooks = (githubWebhooks: Webhooks) => {
@@ -34,7 +34,9 @@ const initGithubWebhooks = (githubWebhooks: Webhooks) => {
         payload.issue.title
       }_\n\nLightdash Cloud users will automatically get the fix once your instance updates (All instances update at 01:00 PST [10:00 CET] daily). Self-hosted users should update to the latest version to get the fix 🎉`;
     } else if (payload.issue.state_reason === "not_planned") {
-      const lastMessage = (await getLastComment(octokitClient, issueUrl)) || "No information provided";
+      const lastMessage =
+        (await getLastComment(octokitClient, issueUrl)) ||
+        "No information provided";
       message = `🗑 Issue ${renderIssueRef(
         issueUrl,
       )} is no longer planned to be fixed.\n> ${lastMessage}\nCheck out the linked issue for more information.`;

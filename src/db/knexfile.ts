@@ -1,5 +1,9 @@
-import Knex from "knex";
-import { ENV, postgresConnectionString } from "./config.js";
+import path from "path";
+import { fileURLToPath } from "url";
+import { postgresConnectionString } from "../config.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const envConfig = {
   client: "pg",
@@ -8,7 +12,7 @@ const envConfig = {
   },
   migrations: {
     tableName: "knex_migrations",
-    directory: "migrations",
+    directory: path.resolve(__dirname, "../db/migrations"),
   },
 } as const;
 
@@ -18,7 +22,3 @@ const knexfile = {
 } as const;
 
 export default knexfile;
-
-const config = knexfile[ENV];
-
-export const knex = Knex(config);

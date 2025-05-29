@@ -45,19 +45,24 @@ RUDDERSTACK_DATA_PLANE_URL=[Get your data plane URL here](https://app.rudderstac
 
 ```bash
 # Install all the project's dependencies
-yarn
+npm install
 
 # Run the app locally
-yarn start
+npm run dev
+
+# build and start
+npm run build && npm start
 ```
 
-### 2. Run localtunnel and update URLs
+### 2. Run cloudflared and update URLs
 
-```shell
-yarn expose
+[read more on cloudflared and custom lightdash.dev domains here](https://www.notion.so/lightdash/Generate-public-development-URLs-with-cloudflared-tunnel-proxy-13fa63207a7a800d8029e8fd36499752)
+
+```bash
+npm expose irakli # exposes irakli.lightdash.dev domain
 ```
 
-Now you need to update the following URLs with the last `Forwarding` url that localtunnel returns:
+Now you need to update the URLs with the cloudflared URL:
 
 - Update the `SITE_ENV` environment variable
 - Update all domains in the `/slack-app-manifest.json`
@@ -92,7 +97,7 @@ GITHUB_ACCESS_TOKEN=a personal access token for GitHub
 ### 6. Run the app locally
 
 ```shell
-yarn dev
+npm run dev
 ```
 
 ### 7. Verify webhooks
@@ -121,5 +126,5 @@ visit https://yourdomain.com/slack/install
 #### Add migration
 
 ```shell
-yarn knex migrate:make <migration_name> --env production
+npm knex -- migrate:make <migration_name> --env production
 ```

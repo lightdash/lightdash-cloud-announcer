@@ -2,9 +2,16 @@
 
 import type { Installation, InstallationQuery } from "@slack/bolt";
 import type { GithubIssueSlackThread } from "knex/types/tables.js";
-import { slackAuthorizedTeams } from "./config.js";
-import { knex } from "./knexfile.js";
-import { getTeamIdFromInstallation, getTeamIdFromInstallationQuery } from "./slack_utils.js";
+import { ENV, slackAuthorizedTeams } from "../config.js";
+import {
+  getTeamIdFromInstallation,
+  getTeamIdFromInstallationQuery,
+} from "../slack_utils.js";
+import Knex from "knex";
+import knexfile from "./knexfile.js";
+
+const knexConfig = knexfile[ENV];
+export const knex = Knex(knexConfig);
 
 knex.migrate
   .latest()
@@ -15,7 +22,9 @@ knex.migrate
     process.exit(1);
   });
 
-export const totalOpenIssueCountInChannel = async (channelId: string): Promise<number> => {
+export const totalOpenIssueCountInChannel = async (
+  channelId: string,
+): Promise<number> => {
   const res = await knex()
     .countDistinct({ count: "github_issue_url" })
     .where("channel_id", channelId)
@@ -24,7 +33,9 @@ export const totalOpenIssueCountInChannel = async (channelId: string): Promise<n
   return Number(res[0]?.count ?? 0);
 };
 
-export const allOpenIssueUrlsInChannel = async (channelId: string): Promise<string[]> => {
+export const allOpenIssueUrlsInChannel = async (
+  channelId: string,
+): Promise<string[]> => {
   const openIssues = await knex("github_issue_slack_threads")
     .select("github_issue_url")
     .distinctOn("github_issue_url")
@@ -34,14 +45,26 @@ export const allOpenIssueUrlsInChannel = async (channelId: string): Promise<stri
   return openIssues.map((issue) => issue.github_issue_url);
 };
 
-export const setIssueIsClosed = async (githubIssueUrl: string, isClosed: boolean): Promise<void> => {
-  await knex("github_issue_slack_threads").where("github_issue_url", githubIssueUrl).update({ is_closed: isClosed });
+export const setIssueIsClosed = async (
+  githubIssueUrl: string,
+  isClosed: boolean,
+): Promise<void> => {
+  await knex("github_issue_slack_threads")
+    .where("github_issue_url", githubIssueUrl)
+    .update({ is_closed: isClosed });
 };
 
-export const createGithubIssueSlackThread = async (githubIssueSlackThread: GithubIssueSlackThread) => {
+export const createGithubIssueSlackThread = async (
+  githubIssueSlackThread: GithubIssueSlackThread,
+) => {
   await knex("github_issue_slack_threads")
     .insert(githubIssueSlackThread)
-    .onConflict(["github_issue_url", "slack_team_id", "channel_id", "slack_thread_ts"])
+    .onConflict([
+      "github_issue_url",
+      "slack_team_id",
+      "channel_id",
+      "slack_thread_ts",
+    ])
     .merge();
 };
 
@@ -60,19 +83,29 @@ export const getIssueThreadsFromIssue = async (githubIssueUrl: string) => {
       "github_issue_slack_threads.slack_thread_ts",
       knex.raw(`auths.installation->'bot'->'token' as bot_token`),
     )
-    .innerJoin("slack_auth_tokens as auths", "github_issue_slack_threads.slack_team_id", "auths.slack_team_id")
+    .innerJoin(
+      "slack_auth_tokens as auths",
+      "github_issue_slack_threads.slack_team_id",
+      "auths.slack_team_id",
+    )
     .where("github_issue_slack_threads.github_issue_url", githubIssueUrl);
 
   return res;
 };
 
-export const getSlackBotToken = async (slackTeamId: string): Promise<string> => {
+export const getSlackBotToken = async (
+  slackTeamId: string,
+): Promise<string> => {
   const row = await knex("slack_auth_tokens")
-    .first<{ bot_token: string }>(knex.raw("installation->'bot'->>'token' as bot_token"))
+    .first<{
+      bot_token: string;
+    }>(knex.raw("installation->'bot'->>'token' as bot_token"))
     .where("slack_team_id", slackTeamId);
 
   if (row === undefined) {
-    throw new Error(`Could not find a slack bot token for team id ${slackTeamId}`);
+    throw new Error(
+      `Could not find a slack bot token for team id ${slackTeamId}`,
+    );
   }
 
   return row.bot_token;
@@ -109,7 +142,10 @@ export const countAllOpenIssuesInChannel = async (channelId: string) => {
   return res;
 };
 
-export const storeInstallation = async <T extends boolean, V extends "v1" | "v2">(
+export const storeInstallation = async <
+  T extends boolean,
+  V extends "v1" | "v2",
+>(
   installation: Installation<V, T>,
 ): Promise<void> => {
   const teamId = getTeamIdFromInstallation(installation);
@@ -126,17 +162,23 @@ export const storeInstallation = async <T extends boolean, V extends "v1" | "v2"
     .ignore();
 };
 
-export const fetchInstallation = async <T extends boolean>(installQuery: InstallationQuery<T>) => {
+export const fetchInstallation = async <T extends boolean>(
+  installQuery: InstallationQuery<T>,
+) => {
   const teamId = getTeamIdFromInstallationQuery(installQuery);
 
-  const [row] = await knex("slack_auth_tokens").select("*").where("slack_team_id", teamId);
+  const [row] = await knex("slack_auth_tokens")
+    .select("*")
+    .where("slack_team_id", teamId);
   if (row === undefined) {
     throw new Error(`Could not find an installation for team id ${teamId}`);
   }
   return row.installation;
 };
 
-export const deleteInstallation = async <T extends boolean>(installQuery: InstallationQuery<T>) => {
+export const deleteInstallation = async <T extends boolean>(
+  installQuery: InstallationQuery<T>,
+) => {
   const teamId = getTeamIdFromInstallationQuery(installQuery);
   await knex("slack_auth_tokens").delete().where("slack_team_id", teamId);
 };
@@ -152,7 +194,10 @@ export const getCurrentFirstResponder = async (
   return row || null;
 };
 
-export const setFirstResponder = async (slackTeamId: string, slackUserId: string): Promise<void> => {
+export const setFirstResponder = async (
+  slackTeamId: string,
+  slackUserId: string,
+): Promise<void> => {
   await knex("first_responders").insert({
     slack_team_id: slackTeamId,
     slack_user_id: slackUserId,
@@ -179,7 +224,9 @@ export const getFirstResponderStats = async (
 
     const userId = currentRow.slack_user_id;
     const startTime = new Date(currentRow.started_at).getTime();
-    const endTime = nextRow ? new Date(nextRow.started_at).getTime() : Date.now();
+    const endTime = nextRow
+      ? new Date(nextRow.started_at).getTime()
+      : Date.now();
 
     const hoursSpent = (endTime - startTime) / (1000 * 60 * 60);
 

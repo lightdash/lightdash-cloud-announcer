@@ -26,9 +26,10 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "start": "node ./src/index.js",
+    "build": "npm run typecheck && tsc",
+    "start": "node ./dist/index.js",
     "dev": "tsx watch ./src/index.ts",
-    "knex": "tsx ./node_modules/knex/bin/cli.js",
+    "knex": "tsx ./node_modules/knex/bin/cli.js --knexfile ./src/db/knexfile.ts",
     "expose": "cloudflared tunnel run --url http://localhost:3001 irakli",
     "format": "biome format .",
     "format:fix": "biome format --write .",
