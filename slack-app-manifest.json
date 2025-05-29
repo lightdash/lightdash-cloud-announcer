@@ -1,0 +1,89 @@
+{
+  "display_information": {
+    "name": "dev Cloudy",
+    "description": "Cloudy - our community helpbot",
+    "background_color": "#000000"
+  },
+  "features": {
+    "app_home": {
+      "home_tab_enabled": false,
+      "messages_tab_enabled": true,
+      "messages_tab_read_only_enabled": false
+    },
+    "bot_user": {
+      "display_name": "[dev] Cloudy",
+      "always_online": true
+    },
+    "shortcuts": [
+      {
+        "name": "Link issue",
+        "type": "message",
+        "callback_id": "link_issue",
+        "description": "Link a github issue to this thread"
+      },
+      {
+        "name": "Draft issues",
+        "type": "message",
+        "callback_id": "draft_issues",
+        "description": "Summarize the thread and create a github issues"
+      }
+    ],
+    "slash_commands": [
+      {
+        "command": "/cloudy-dev",
+        "url": "https://irakli.lightdash.dev/slack/events",
+        "description": "Our community helpbot",
+        "usage_hint": "list, help, link",
+        "should_escape": true
+      },
+      {
+        "command": "/first-responder-dev",
+        "url": "https://irakli.lightdash.dev/slack/events",
+        "description": "Manage the first responder for your team",
+        "usage_hint": "help",
+        "should_escape": true
+      },
+      {
+        "command": "/fr-dev",
+        "url": "https://irakli.lightdash.dev/slack/events",
+        "description": "Shortcut for first responder command",
+        "usage_hint": "help",
+        "should_escape": true
+      }
+    ]
+  },
+  "oauth_config": {
+    "redirect_urls": ["https://irakli.lightdash.dev/slack/oauth_redirect"],
+    "scopes": {
+      "bot": [
+        "app_mentions:read",
+        "bookmarks:read",
+        "bookmarks:write",
+        "channels:history",
+        "channels:join",
+        "channels:read",
+        "chat:write",
+        "commands",
+        "usergroups:write",
+        "users.profile:read",
+        "users:read",
+        "users:read.email",
+        "usergroups:read"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "request_url": "https://irakli.lightdash.dev/slack/events",
+      "bot_events": ["app_mention", "app_uninstalled", "message.channels"]
+    },
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://irakli.lightdash.dev/slack/events",
+      "message_menu_options_url": "https://irakli.lightdash.dev/slack/events"
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}
