@@ -2,10 +2,10 @@ import { openai } from "@ai-sdk/openai";
 import { Agent } from "@mastra/core";
 import { z } from "zod";
 
-const Cloudy007 = new Agent({
+const cloudy007 = new Agent({
   model: openai("gpt-4o-mini"),
-  name: "Cloudy007",
-  instructions: `You are Cloudy007, a helpful assistant that summarizes Slack conversations.
+  name: "cloudy007",
+  instructions: `You are cloudy007, a helpful assistant that summarizes Slack conversations.
 
 You help Lightdash support engineers by summarizing Slack threads quickly and clearly.
 
@@ -23,13 +23,11 @@ const schema = z.object({
   summary: z.string().describe("Summarized conversation in Slack format"),
   resolved: z.boolean().describe("Is the conversation resolved?"),
   severity: z.enum(["low", "medium", "high"]).describe("Issue severity level"),
-  angerLevel: z
-    .enum(["none", "mild", "strong"])
-    .describe("Level of anger in the conversation"),
+  angerLevel: z.enum(["none", "mild", "strong"]).describe("Level of anger in the conversation"),
 });
 
 export const summarizeConversation = async (text: string) => {
-  const result = await Cloudy007.generate([{ role: "user", content: text }], {
+  const result = await cloudy007.generate([{ role: "user", content: text }], {
     output: schema,
   });
 
