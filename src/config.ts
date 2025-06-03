@@ -24,6 +24,9 @@ const githubWebhooksSecret = z.string().parse(process.env["GITHUB_WEBHOOKS_SECRE
 
 const githubAccessToken = z.string().parse(process.env["GITHUB_ACCESS_TOKEN"]);
 
+const GH_OWNER = "lightdash";
+const GH_REPO = "lightdash";
+
 const sentryDsn = z.string().optional().parse(process.env["SENTRY_DSN"]);
 
 export {
@@ -33,5 +36,7 @@ export {
   slackAuthorizedTeams,
   githubWebhooksSecret,
   githubAccessToken,
+  GH_OWNER,
+  GH_REPO,
   sentryDsn,
 };
