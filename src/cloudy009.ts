@@ -227,8 +227,8 @@ export const findGithubIssues = ({
     },
   });
 
-  const createGithubIssuesFromConversation = createWorkflow({
-    id: "createGithubIssuesFromConversation",
+  const findGithubIssuesFromConversation = createWorkflow({
+    id: "findGithubIssuesFromConversation",
     inputSchema: inputSchema,
     outputSchema: issuesSchema,
     steps: [
@@ -251,14 +251,14 @@ export const findGithubIssues = ({
 
   const mastra = new Mastra({
     agents: { cloudy009 },
-    workflows: { createGithubIssuesFromConversation },
+    workflows: { findGithubIssuesFromConversation },
     logger: new PinoLogger({
-      name: "createGithubIssuesFromConversation",
-      level: "debug",
+      name: "findGithubIssuesFromConversation",
+      level: "warn",
     }),
   });
 
-  const workflowRun = mastra.getWorkflow("createGithubIssuesFromConversation").createRun();
+  const workflowRun = mastra.getWorkflow("findGithubIssuesFromConversation").createRun();
 
   const slackRuntimeContext = new RuntimeContext<SlackRuntimeContext>();
   slackRuntimeContext.set("slackClient", client);

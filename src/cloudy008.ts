@@ -212,7 +212,7 @@ export const draftIssues = ({
     workflows: { createGithubIssuesFromConversation },
     logger: new PinoLogger({
       name: "createGithubIssuesFromConversation",
-      level: "debug",
+      level: "warn",
     }),
   });
 
