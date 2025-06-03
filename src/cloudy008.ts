@@ -26,9 +26,9 @@ export const draftIssues = ({
   user: MessageShortcut["user"];
 }) => {
   const cloudy008 = new Agent({
-    model: openai("gpt-4o-mini"),
+    model: openai("gpt-4.1", { structuredOutputs: true }),
     name: "Cloudy008",
-    instructions: `You are Cloudy007, a helpful assistant that creates clear GitHub issue specs from Slack conversations.
+    instructions: `You are Cloudy008, a helpful assistant that creates clear GitHub issue specs from Slack conversations.
 
   You help Lightdash support engineers by creating clear GitHub issue specs from Slack conversations.
 
@@ -123,7 +123,7 @@ export const draftIssues = ({
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `📋 *Issue Summary*\n${inputData.issues.length} issue${inputData.issues.length === 1 ? "" : "s"} drafted by the agent`,
+            text: `📋 *Draft Summary*: Drafted ${inputData.issues.length} issue${inputData.issues.length === 1 ? "" : "s"}`,
           },
         },
       ];
@@ -134,7 +134,12 @@ export const draftIssues = ({
         });
       }
 
+      const emojisForIndex = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+      const getEmojiForIndex = (index: number) => emojisForIndex[index] || "🔢";
+
       const issueBlocks = inputData.issues.reduce<KnownBlock[]>((acc, issue, index, issues) => {
+        const indexEmoji = getEmojiForIndex(index);
+
         const url = `https://github.com/${GH_OWNER}/${GH_REPO}/issues/new?${toQueryString({
           title: issue.title,
           body: issue.description,
@@ -145,7 +150,15 @@ export const draftIssues = ({
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `*${issue.title}*\n\n${issue.description}`,
+            text: `${indexEmoji} *${issue.title}*`,
+          },
+        });
+
+        acc.push({
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: issue.description,
           },
         });
 
