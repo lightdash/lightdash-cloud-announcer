@@ -64,6 +64,10 @@ export const findGithubIssues = ({
         title: z.string().describe("The title of the issue"),
         description: z.string().nullable().describe("The description of the issue"),
         url: z.string().describe("The URL of the issue"),
+        status: z.string().nullable().describe("The status of the issue"),
+        milestone: z.string().nullable().describe("The milestone of the issue"),
+        labels: z.array(z.string()).nullable().describe("The labels of the issue"),
+        rank: z.number().describe("The similarity rank of the issue"),
       }),
     ),
   });
@@ -127,6 +131,9 @@ export const findGithubIssues = ({
     },
   });
 
+  const SEARCH_LIMIT = 3;
+  const SEARCH_THRESHOLD = 0.66;
+
   const searchForIssues = createStep({
     id: "searchForIssues",
     description: "Search for issues in GitHub",
@@ -140,12 +147,23 @@ export const findGithubIssues = ({
         milestone: inputData.searchQueries.milestone,
       });
 
-      const issues = await searchGithubIssuesByEmbeddings(GH_OWNER, GH_REPO, "issue", embeddings);
+      const issues = await searchGithubIssuesByEmbeddings(
+        GH_OWNER,
+        GH_REPO,
+        "issue",
+        embeddings,
+        SEARCH_LIMIT,
+        SEARCH_THRESHOLD,
+      );
 
       const mappedIssues = issues.map((issue) => ({
         title: issue.title,
         description: issue.description,
         url: issue.issue_url,
+        status: issue.status,
+        milestone: issue.milestone,
+        labels: issue.labels,
+        rank: issue.rank,
       }));
 
       return { issues: mappedIssues };
@@ -158,14 +176,79 @@ export const findGithubIssues = ({
     inputSchema: issuesSchema,
     outputSchema: outputSchema,
     execute: async ({ inputData, runtimeContext }) => {
-      const blocks = inputData.issues.reduce<KnownBlock[]>((acc, issue, index, allIssues) => {
+      const summaryBlocks: KnownBlock[] = [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `🔍 *Search Results*: found ${inputData.issues.length} existing issue${inputData.issues.length === 1 ? "" : "s"}`,
+          },
+        },
+      ];
+
+      if (inputData.issues.length !== 0) {
+        summaryBlocks.push({
+          type: "divider",
+        });
+      }
+
+      const emojisForIndex = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+      const confidenceLabels = {
+        high: "High 💪",
+        medium: "Medium 👌",
+        low: "Low 🤷‍♂️",
+      } as const;
+
+      // results are from 0.66 threshold and up. it is kept in rank as a float and its more than a SEARCH_THRESHOLD
+      const getConfidence = (rank: number): keyof typeof confidenceLabels => {
+        if (rank >= 0.85) return "high";
+        if (rank >= 0.75) return "medium";
+        return "low";
+      };
+
+      const issueBlocks = inputData.issues.reduce<KnownBlock[]>((acc, issue, index, allIssues) => {
+        const confidence = getConfidence(issue.rank);
+        const confidenceText = confidenceLabels[confidence];
+        const indexEmoji = emojisForIndex[index] || "🔢";
+
         acc.push(
           {
             type: "section",
             text: {
               type: "mrkdwn",
-              text: `*${issue.title}*\n\n${issue.description}`,
+              text: `${indexEmoji} *${issue.title}*`,
             },
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `Confidence: ${confidenceText}`,
+            },
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: issue.description ?? "",
+            },
+          },
+          {
+            type: "context",
+            elements: [
+              {
+                type: "mrkdwn",
+                text: `🚦 *Status:* ${issue.status || "-"}`,
+              },
+              {
+                type: "mrkdwn",
+                text: `🎯 *Milestone:* ${issue.milestone || "-"}`,
+              },
+              {
+                type: "mrkdwn",
+                text: `🏷️ *Labels:* ${issue.labels && issue.labels.length > 0 ? issue.labels.join(", ") : "-"}`,
+              },
+            ],
           },
           {
             type: "actions",
@@ -188,13 +271,15 @@ export const findGithubIssues = ({
         return acc;
       }, []);
 
+      const blocks = [...summaryBlocks, ...issueBlocks];
+
       const channelId = runtimeContext.get("channelId");
       const threadOrMessageTs = runtimeContext.get("threadOrMessageTs");
 
       await client.chat.postEphemeral({
         channel: channelId as string,
         thread_ts: threadOrMessageTs as string,
-        text: "GitHub issue specs generated from the conversation:",
+        text: "Existing GitHub issues found based on the conversation:",
         blocks,
         icon_emoji: ":female-detective:",
         user: user.id,
