@@ -118,32 +118,58 @@ export const draftIssues = ({
           .join("&");
       }
 
-      const blocks = inputData.issues.reduce<KnownBlock[]>((acc, issue, index, issues) => {
+      const summaryBlocks: KnownBlock[] = [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `📋 *Issue Summary*\n${inputData.issues.length} issue${inputData.issues.length === 1 ? "" : "s"} drafted by the agent`,
+          },
+        },
+      ];
+
+      if (inputData.issues.length !== 0) {
+        summaryBlocks.push({
+          type: "divider",
+        });
+      }
+
+      const issueBlocks = inputData.issues.reduce<KnownBlock[]>((acc, issue, index, issues) => {
         const url = `https://github.com/${GH_OWNER}/${GH_REPO}/issues/new?${toQueryString({
           title: issue.title,
           body: issue.description,
           labels: issue.labels.join(","),
         })}`;
 
-        acc.push(
-          {
+        acc.push({
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*${issue.title}*\n\n${issue.description}`,
+          },
+        });
+
+        // Add labels block if there are labels
+        if (issue.labels.length > 0) {
+          acc.push({
             type: "section",
             text: {
               type: "mrkdwn",
-              text: `*${issue.title}*\n\n${issue.description}`,
+              text: `*Labels:* ${issue.labels.map((label) => `\`${label}\``).join(", ")}`,
             },
-          },
-          {
-            type: "actions",
-            elements: [
-              {
-                type: "button",
-                text: { type: "plain_text", text: "Create GitHub Issue" },
-                url,
-              },
-            ],
-          },
-        );
+          });
+        }
+
+        acc.push({
+          type: "actions",
+          elements: [
+            {
+              type: "button",
+              text: { type: "plain_text", text: "Create GitHub Issue" },
+              url,
+            },
+          ],
+        });
 
         if (index !== issues.length - 1) {
           acc.push({
@@ -153,6 +179,8 @@ export const draftIssues = ({
 
         return acc;
       }, []);
+
+      const blocks = [...summaryBlocks, ...issueBlocks];
 
       const channelId = runtimeContext.get("channelId");
       const threadOrMessageTs = runtimeContext.get("threadOrMessageTs");

@@ -206,12 +206,15 @@ export const searchGithubIssuesByEmbeddings = async (
         title: string;
         description: string;
         issue_url: string;
+        status: string | null;
+        milestone: string | null;
+        labels: string[] | null;
         rank: number;
       }[]
     >("*")
     .from(function () {
       // @ts-ignore does not like function and this.select...
-      this.select("title", "description", "issue_url", {
+      this.select("title", "description", "issue_url", "status", "milestone", "labels", {
         rank: knex.raw(`1 - (github_issues.embeddings <=> ?)`, [embeddings]),
       })
         .from("github_issues")
