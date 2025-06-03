@@ -33,8 +33,6 @@ export const getConversationHistory = createStep({
   execute: async ({ inputData, runtimeContext }) => {
     const client = (runtimeContext as RuntimeContext<SlackRuntimeContext>).get("slackClient");
 
-    console.log(runtimeContext);
-
     const allMessages = await client.conversations.replies({
       channel: inputData.channelId,
       ts: inputData.threadOrMessageTs,

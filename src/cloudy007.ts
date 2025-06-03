@@ -1,6 +1,15 @@
 import { openai } from "@ai-sdk/openai";
-import { Agent } from "@mastra/core";
+import type { WebClient } from "@slack/web-api";
+import { Agent, createStep, createWorkflow, Mastra } from "@mastra/core";
 import { z } from "zod";
+import type { MessageShortcut } from "@slack/bolt";
+import { PinoLogger } from "@mastra/loggers";
+import {
+  conversationHistorySchema,
+  getConversationHistory,
+  type SlackRuntimeContext,
+} from "./ai/steps/getConversationHistory.js";
+import { RuntimeContext } from "@mastra/core/runtime-context";
 
 const cloudy007 = new Agent({
   model: openai("gpt-4o-mini"),
@@ -19,17 +28,140 @@ Make the summary focused, actionable, and helpful—don't just repeat the text b
 `,
 });
 
-const schema = z.object({
-  summary: z.string().describe("Summarized conversation in Slack format"),
-  resolved: z.boolean().describe("Is the conversation resolved?"),
-  severity: z.enum(["low", "medium", "high"]).describe("Issue severity level"),
-  angerLevel: z.enum(["none", "mild", "strong"]).describe("Level of anger in the conversation"),
-});
-
-export const summarizeConversation = async (text: string) => {
-  const result = await cloudy007.generate([{ role: "user", content: text }], {
-    output: schema,
+export const summarizeConversation = ({
+  channelId,
+  threadOrMessageTs,
+  client,
+  user,
+}: {
+  channelId: string;
+  threadOrMessageTs: string;
+  client: WebClient;
+  user: MessageShortcut["user"];
+}) => {
+  const inputSchema = z.object({
+    channelId: z.string().describe("The channel ID"),
+    threadOrMessageTs: z.string().describe("The thread or message timestamp"),
   });
 
-  return result;
+  const conversationSummarySchema = z.object({
+    summary: z.string().describe("Summarized conversation in Slack format"),
+    resolved: z.boolean().describe("Is the conversation resolved?"),
+    severity: z.enum(["low", "medium", "high"]).describe("Issue severity level"),
+    frustrationLevel: z.enum(["calm", "mild", "strong"]).describe("Level of anger in the conversation"),
+  });
+
+  const summarizeConversationStep = createStep({
+    id: "summarizeConversation",
+    description: "Search for issues in GitHub",
+    inputSchema: conversationHistorySchema,
+    outputSchema: conversationSummarySchema,
+    execute: async ({ inputData }) => {
+      const conversationTranscript = inputData.conversationHistory
+        .map(
+          (message) => `
+Author: ${message.author ?? "unknown"}
+Message: ${message.message}
+`,
+        )
+        .join("\n\n---------\n\n");
+
+      const { object: summary } = await cloudy007.generate(
+        [
+          { role: "user", content: conversationTranscript },
+          { role: "user", content: "Summarize the conversation" },
+        ],
+        {
+          output: conversationSummarySchema,
+        },
+      );
+
+      return summary;
+    },
+  });
+
+  const postInSlackStep = createStep({
+    id: "postInSlack",
+    description: "Post summary in Slack",
+    inputSchema: conversationSummarySchema,
+    outputSchema: z.object({}).describe("No output"),
+    execute: async ({ inputData }) => {
+      const severityEmojis = {
+        low: "🟢 low",
+        medium: "🟠 medium",
+        high: "🔴 high",
+      } as const;
+      const frustrationEmojis = {
+        calm: "😌 calm",
+        mild: "😠 mild",
+        strong: "😡 strong",
+      } as const;
+
+      client.chat.postEphemeral({
+        channel: channelId,
+        thread_ts: threadOrMessageTs,
+        icon_emoji: ":writing_hand:",
+        text: inputData.summary,
+        user: user.id,
+        blocks: [
+          {
+            type: "section",
+            text: { type: "mrkdwn", text: inputData.summary },
+          },
+          {
+            type: "context",
+            elements: [
+              {
+                type: "mrkdwn",
+                text: `*Resolved:* ${inputData.resolved ? "✅ Yes" : "❌ No"}`,
+              },
+              {
+                type: "mrkdwn",
+                text: `*Severity:* ${severityEmojis[inputData.severity]}`,
+              },
+              {
+                type: "mrkdwn",
+                text: `*Frustration:* ${frustrationEmojis[inputData.frustrationLevel]}`,
+              },
+            ],
+          },
+        ],
+      });
+
+      return {};
+    },
+  });
+
+  const summarizeConversationWorkflow = createWorkflow({
+    id: "summarizeConversationWorkflow",
+    inputSchema: inputSchema,
+    outputSchema: conversationSummarySchema,
+    steps: [getConversationHistory, summarizeConversationStep, postInSlackStep],
+  })
+    .then(getConversationHistory)
+    .then(summarizeConversationStep)
+    .then(postInSlackStep)
+    .commit();
+
+  const slackRuntimeContext = new RuntimeContext<SlackRuntimeContext>();
+  slackRuntimeContext.set("slackClient", client);
+
+  const mastra = new Mastra({
+    agents: { cloudy007 },
+    workflows: { summarizeConversationWorkflow },
+    logger: new PinoLogger({
+      name: "summarizeConversation",
+      level: "warn",
+    }),
+  });
+
+  const workflowRun = mastra.getWorkflow("summarizeConversationWorkflow").createRun();
+
+  return workflowRun.start({
+    inputData: {
+      channelId,
+      threadOrMessageTs,
+    },
+    runtimeContext: slackRuntimeContext,
+  });
 };
