@@ -24,7 +24,7 @@ export const findGithubIssues = ({
   user: MessageShortcut["user"];
 }) => {
   const cloudy009 = new Agent({
-    model: openai("gpt-4o-mini"),
+    model: openai("gpt-4.1", { structuredOutputs: true }),
     name: "Cloudy009",
     instructions: `You are Cloudy009, a helpful assistant that searches for issues in GitHub based on the conversation history.
 
@@ -193,6 +193,8 @@ export const findGithubIssues = ({
       }
 
       const emojisForIndex = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+      const getEmojiForIndex = (index: number) => emojisForIndex[index] || "🔢";
+
       const confidenceLabels = {
         high: "High 💪",
         medium: "Medium 👌",
@@ -209,7 +211,7 @@ export const findGithubIssues = ({
       const issueBlocks = inputData.issues.reduce<KnownBlock[]>((acc, issue, index, allIssues) => {
         const confidence = getConfidence(issue.rank);
         const confidenceText = confidenceLabels[confidence];
-        const indexEmoji = emojisForIndex[index] || "🔢";
+        const indexEmoji = getEmojiForIndex(index);
 
         acc.push(
           {

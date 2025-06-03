@@ -12,7 +12,7 @@ import {
 import { RuntimeContext } from "@mastra/core/runtime-context";
 
 const cloudy007 = new Agent({
-  model: openai("gpt-4o-mini"),
+  model: openai("gpt-4.1", { structuredOutputs: true }),
   name: "cloudy007",
   instructions: `You are cloudy007, a helpful assistant that summarizes Slack conversations.
 
