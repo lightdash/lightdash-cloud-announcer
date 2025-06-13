@@ -45,6 +45,29 @@ export const summarizeConversation = ({
     threadOrMessageTs: z.string().describe("The thread or message timestamp"),
   });
 
+  const postLoadingMessageStep = createStep({
+    id: "postLoadingMessage",
+    description: "Post a loading message in Slack",
+    inputSchema: inputSchema,
+    outputSchema: inputSchema,
+    execute: async ({ inputData }) => {
+      await slackTryJoin(
+        () =>
+          client.chat.postEphemeral({
+            channel: inputData.channelId,
+            thread_ts: inputData.threadOrMessageTs,
+            icon_emoji: ":clipboard:",
+            text: "Summarizing conversation...",
+            user: user.id,
+          }),
+        client,
+        inputData.channelId,
+      );
+
+      return inputData;
+    },
+  });
+
   const conversationSummarySchema = z.object({
     summary: z.string().describe("Summarized conversation in Slack format"),
     resolved: z.boolean().describe("Is the conversation resolved?"),
@@ -103,7 +126,7 @@ Message: ${message.message}
           client.chat.postEphemeral({
             channel: channelId,
             thread_ts: threadOrMessageTs,
-            icon_emoji: ":writing_hand:",
+            icon_emoji: ":clipboard:",
             text: inputData.summary,
             user: user.id,
             blocks: [
@@ -143,8 +166,9 @@ Message: ${message.message}
     id: "summarizeConversationWorkflow",
     inputSchema: inputSchema,
     outputSchema: conversationSummarySchema,
-    steps: [getConversationHistory, summarizeConversationStep, postInSlackStep],
+    steps: [postLoadingMessageStep, getConversationHistory, summarizeConversationStep, postInSlackStep],
   })
+    .then(postLoadingMessageStep)
     .then(getConversationHistory)
     .then(summarizeConversationStep)
     .then(postInSlackStep)

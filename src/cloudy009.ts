@@ -82,6 +82,29 @@ export const findGithubIssues = ({
     searched: z.boolean().describe("Whether the issues were searched for"),
   });
 
+  const postLoadingMessageStep = createStep({
+    id: "postLoadingMessage",
+    description: "Post a loading message in Slack",
+    inputSchema: inputSchema,
+    outputSchema: inputSchema,
+    execute: async ({ inputData }) => {
+      await slackTryJoin(
+        () =>
+          client.chat.postEphemeral({
+            channel: inputData.channelId,
+            thread_ts: inputData.threadOrMessageTs,
+            icon_emoji: ":female-detective:",
+            text: "Searching for similar GitHub issues...",
+            user: user.id,
+          }),
+        client,
+        inputData.channelId,
+      );
+
+      return inputData;
+    },
+  });
+
   const getConversationHistory = createStep({
     id: "getConversationHistory",
     inputSchema: inputSchema,
@@ -340,6 +363,7 @@ export const findGithubIssues = ({
     inputSchema: inputSchema,
     outputSchema: issuesSchema,
     steps: [
+      postLoadingMessageStep,
       getConversationHistory,
       getLabelsAndMilestones,
       generateSearchQueries,
@@ -348,6 +372,7 @@ export const findGithubIssues = ({
       doNotSearchForIssues,
     ],
   })
+    .then(postLoadingMessageStep)
     .parallel([getConversationHistory, getLabelsAndMilestones])
     .then(generateSearchQueries)
     .then(searchForIssues)

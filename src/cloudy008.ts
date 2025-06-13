@@ -66,6 +66,29 @@ export const draftIssues = ({
     gh_repo: z.string().describe("The GitHub repository"),
   });
 
+  const postLoadingMessageStep = createStep({
+    id: "postLoadingMessage",
+    description: "Post a loading message in Slack",
+    inputSchema: inputSchema,
+    outputSchema: inputSchema,
+    execute: async ({ inputData }) => {
+      await slackTryJoin(
+        () =>
+          client.chat.postEphemeral({
+            channel: inputData.channelId,
+            thread_ts: inputData.threadOrMessageTs,
+            icon_emoji: ":writing_hand:",
+            text: "Drafting GitHub issues...",
+            user: user.id,
+          }),
+        client,
+        inputData.channelId,
+      );
+
+      return inputData;
+    },
+  });
+
   const issuesSchema = z.object({
     issues: z.array(
       z.object({
@@ -206,7 +229,7 @@ export const draftIssues = ({
             thread_ts: threadOrMessageTs,
             text: "GitHub issue specs generated from the conversation:",
             blocks,
-            icon_emoji: ":rocket:",
+            icon_emoji: ":writing_hand:",
             user: user.id,
           }),
         client,
@@ -250,8 +273,9 @@ export const draftIssues = ({
     id: "createGithubIssuesFromConversation",
     inputSchema: inputSchema,
     outputSchema: issuesSchema,
-    steps: [getConversationHistory, specIssues, postIssues, doNotCreateIssues],
+    steps: [postLoadingMessageStep, getConversationHistory, specIssues, postIssues, doNotCreateIssues],
   })
+    .then(postLoadingMessageStep)
     .parallel([getConversationHistory, getLabelsAndMilestones])
     .then(specIssues)
     .branch([
