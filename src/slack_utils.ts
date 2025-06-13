@@ -118,9 +118,9 @@ export const updateFirstResponderUserGroup = async (client: WebClient, slackUser
   }
 };
 
-export const slackTryJoin = async (fn: () => Promise<unknown>, client: WebClient, channelId: string) => {
+export const slackTryJoin = async <T>(fn: () => Promise<T>, client: WebClient, channelId: string) => {
   try {
-    await fn();
+    return await fn();
   } catch (e) {
     const maybeSlackPlatformError = e as WebAPIPlatformError;
     if (
@@ -128,7 +128,7 @@ export const slackTryJoin = async (fn: () => Promise<unknown>, client: WebClient
       maybeSlackPlatformError.data?.error === "not_in_channel"
     ) {
       await client.conversations.join({ channel: channelId });
-      await fn();
+      return await fn();
     } else {
       throw e;
     }
