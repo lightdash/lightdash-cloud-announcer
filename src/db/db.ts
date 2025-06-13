@@ -196,7 +196,7 @@ export const searchGithubIssuesByEmbeddings = async (
   owner: string,
   repo: string,
   type: "issue" | "pr",
-  embeddings: string,
+  embeddings: string[],
   limit = 3,
   threshold = 0.66,
 ) => {
@@ -214,9 +214,26 @@ export const searchGithubIssuesByEmbeddings = async (
     >("*")
     .from(function () {
       // @ts-ignore does not like function and this.select...
-      this.select("title", "description", "issue_url", "status", "milestone", "labels", {
-        rank: knex.raw(`1 - (github_issues.embeddings <=> ?)`, [embeddings]),
-      })
+      // Compute the best (highest) similarity rank across all embeddings for each issue
+      // embeddings is an array of serialized embedding strings
+      // We'll use a VALUES clause to unnest the embeddings and compute the max rank
+      this.select(
+        "title",
+        "description",
+        "issue_url",
+        "status",
+        "milestone",
+        "labels",
+        knex.raw(
+          `
+          (
+            SELECT MAX(1 - (github_issues.embeddings <=> ve.embedding::vector))
+            FROM (VALUES ${embeddings.map(() => "(?)").join(", ")}) AS ve(embedding)
+          ) AS rank
+        `,
+          embeddings,
+        ),
+      )
         .from("github_issues")
         .where({ owner, repo, type })
         .as("ranked_issues");

@@ -51,12 +51,17 @@ export const findGithubIssues = ({
   });
 
   const searchQuerySchema = z.object({
-    searchQueries: z.object({
-      title: z.string().describe("The title of the issue that should be searched for"),
-      description: z.string().describe("The description of the issue that should be searched for"),
-      labels: z.array(z.string()).describe("The labels of the issue that should be searched for"),
-      milestone: z.string().describe("The milestone of the issue that should be searched for"),
-    }),
+    searchQueries: z
+      .array(
+        z.object({
+          title: z.string().describe("The title of the issue that should be searched for"),
+          description: z.string().describe("The description of the issue that should be searched for"),
+          labels: z.array(z.string()).describe("The labels of the issue that should be searched for"),
+          milestone: z.string().describe("The milestone of the issue that should be searched for"),
+        }),
+      )
+      .describe("Possible search queries for the issues that will be used to perform a embedding search")
+      .length(3, "You should generate 3 search queries"),
   });
 
   const issuesSchema = z.object({
@@ -114,7 +119,7 @@ export const findGithubIssues = ({
     }),
     outputSchema: searchQuerySchema,
     execute: async ({ inputData }) => {
-      const { object: issues } = await cloudy009.generate(
+      const { object: queries } = await cloudy009.generate(
         [
           {
             role: "user",
@@ -128,7 +133,7 @@ export const findGithubIssues = ({
         { output: searchQuerySchema },
       );
 
-      return issues;
+      return queries;
     },
   });
 
@@ -141,12 +146,16 @@ export const findGithubIssues = ({
     inputSchema: searchQuerySchema,
     outputSchema: issuesSchema,
     execute: async ({ inputData }) => {
-      const embeddings = await embedIssue({
-        title: inputData.searchQueries.title,
-        description: inputData.searchQueries.description,
-        labels: inputData.searchQueries.labels,
-        milestone: inputData.searchQueries.milestone,
-      });
+      const embeddings = await Promise.all(
+        inputData.searchQueries.map((query) =>
+          embedIssue({
+            title: query.title,
+            description: query.description,
+            labels: query.labels,
+            milestone: query.milestone,
+          }),
+        ),
+      );
 
       const issues = await searchGithubIssuesByEmbeddings(
         GH_OWNER,
@@ -226,14 +235,14 @@ export const findGithubIssues = ({
             type: "section",
             text: {
               type: "mrkdwn",
-              text: `Confidence: ${confidenceText}`,
+              text: `*Confidence:* ${confidenceText}`,
             },
           },
           {
             type: "section",
             text: {
               type: "mrkdwn",
-              text: issue.description ?? "",
+              text: `*Description:* ${issue.description ?? ""}`,
             },
           },
           {
