@@ -11,6 +11,7 @@ import { getLabelsAndMilestones, labelsAndMilestonesSchema } from "./ai/steps/ge
 import { GH_OWNER, GH_REPO } from "./config.js";
 import { searchGithubIssuesByEmbeddings } from "./db/db.js";
 import { RuntimeContext } from "@mastra/core/runtime-context";
+import { slackTryJoin } from "./slack_utils.js";
 
 export const findGithubIssues = ({
   channelId,
@@ -275,17 +276,22 @@ export const findGithubIssues = ({
 
       const blocks = [...summaryBlocks, ...issueBlocks];
 
-      const channelId = runtimeContext.get("channelId");
-      const threadOrMessageTs = runtimeContext.get("threadOrMessageTs");
+      const channelId = runtimeContext.get("channelId") as string; // TODO: fixme...
+      const threadOrMessageTs = runtimeContext.get("threadOrMessageTs") as string; // TODO: fixme...
 
-      await client.chat.postEphemeral({
-        channel: channelId as string,
-        thread_ts: threadOrMessageTs as string,
-        text: "Existing GitHub issues found based on the conversation:",
-        blocks,
-        icon_emoji: ":female-detective:",
-        user: user.id,
-      });
+      await slackTryJoin(
+        () =>
+          client.chat.postEphemeral({
+            channel: channelId,
+            thread_ts: threadOrMessageTs,
+            text: "Existing GitHub issues found based on the conversation:",
+            blocks,
+            icon_emoji: ":female-detective:",
+            user: user.id,
+          }),
+        client,
+        channelId,
+      );
 
       return { searched: true };
     },
@@ -300,15 +306,21 @@ export const findGithubIssues = ({
         throw new Error("Incorrectly executing doNotCreateIssues step");
       }
 
-      const channelId = runtimeContext.get("channelId");
-      const threadOrMessageTs = runtimeContext.get("threadOrMessageTs");
+      const channelId = runtimeContext.get("channelId") as string; // TODO: fixme...
+      const threadOrMessageTs = runtimeContext.get("threadOrMessageTs") as string; // TODO: fixme...
 
-      await client.chat.postMessage({
-        channel: channelId as string,
-        thread_ts: threadOrMessageTs as string, // TODO: fixme...
-        text: "Conversation does not contain enough information to find issues.",
-        icon_emoji: ":warning:",
-      });
+      await slackTryJoin(
+        () =>
+          client.chat.postEphemeral({
+            channel: channelId,
+            thread_ts: threadOrMessageTs,
+            text: "Conversation does not contain enough information to find issues.",
+            icon_emoji: ":warning:",
+            user: user.id,
+          }),
+        client,
+        channelId,
+      );
 
       return { searched: false };
     },

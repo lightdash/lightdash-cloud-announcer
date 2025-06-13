@@ -10,6 +10,7 @@ import {
   type SlackRuntimeContext,
 } from "./ai/steps/getConversationHistory.js";
 import { RuntimeContext } from "@mastra/core/runtime-context";
+import { slackTryJoin } from "./slack_utils.js";
 
 const cloudy007 = new Agent({
   model: openai("gpt-4.1", { structuredOutputs: true }),
@@ -97,36 +98,42 @@ Message: ${message.message}
         strong: "😡 strong",
       } as const;
 
-      client.chat.postEphemeral({
-        channel: channelId,
-        thread_ts: threadOrMessageTs,
-        icon_emoji: ":writing_hand:",
-        text: inputData.summary,
-        user: user.id,
-        blocks: [
-          {
-            type: "section",
-            text: { type: "mrkdwn", text: inputData.summary },
-          },
-          {
-            type: "context",
-            elements: [
+      await slackTryJoin(
+        async () => {
+          client.chat.postEphemeral({
+            channel: channelId,
+            thread_ts: threadOrMessageTs,
+            icon_emoji: ":writing_hand:",
+            text: inputData.summary,
+            user: user.id,
+            blocks: [
               {
-                type: "mrkdwn",
-                text: `*Resolved:* ${inputData.resolved ? "✅ Yes" : "❌ No"}`,
+                type: "section",
+                text: { type: "mrkdwn", text: inputData.summary },
               },
               {
-                type: "mrkdwn",
-                text: `*Severity:* ${severityEmojis[inputData.severity]}`,
-              },
-              {
-                type: "mrkdwn",
-                text: `*Frustration:* ${frustrationEmojis[inputData.frustrationLevel]}`,
+                type: "context",
+                elements: [
+                  {
+                    type: "mrkdwn",
+                    text: `*Resolved:* ${inputData.resolved ? "✅ Yes" : "❌ No"}`,
+                  },
+                  {
+                    type: "mrkdwn",
+                    text: `*Severity:* ${severityEmojis[inputData.severity]}`,
+                  },
+                  {
+                    type: "mrkdwn",
+                    text: `*Frustration:* ${frustrationEmojis[inputData.frustrationLevel]}`,
+                  },
+                ],
               },
             ],
-          },
-        ],
-      });
+          });
+        },
+        client,
+        channelId,
+      );
 
       return {};
     },

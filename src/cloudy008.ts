@@ -13,6 +13,7 @@ import {
 import { getLabelsAndMilestones, labelsAndMilestonesSchema } from "./ai/steps/getToolsAndMilestones.js";
 import { GH_OWNER, GH_REPO } from "./config.js";
 import { RuntimeContext } from "@mastra/core/runtime-context";
+import { slackTryJoin } from "./slack_utils.js";
 
 export const draftIssues = ({
   channelId,
@@ -195,17 +196,22 @@ export const draftIssues = ({
 
       const blocks = [...summaryBlocks, ...issueBlocks];
 
-      const channelId = runtimeContext.get("channelId");
-      const threadOrMessageTs = runtimeContext.get("threadOrMessageTs");
+      const channelId = runtimeContext.get("channelId") as string; // TODO: fixme...
+      const threadOrMessageTs = runtimeContext.get("threadOrMessageTs") as string; // TODO: fixme...
 
-      await client.chat.postEphemeral({
-        channel: channelId as string,
-        thread_ts: threadOrMessageTs as string,
-        text: "GitHub issue specs generated from the conversation:",
-        blocks,
-        icon_emoji: ":rocket:",
-        user: user.id,
-      });
+      await slackTryJoin(
+        () =>
+          client.chat.postEphemeral({
+            channel: channelId,
+            thread_ts: threadOrMessageTs,
+            text: "GitHub issue specs generated from the conversation:",
+            blocks,
+            icon_emoji: ":rocket:",
+            user: user.id,
+          }),
+        client,
+        channelId,
+      );
 
       return { created: true };
     },
@@ -220,15 +226,21 @@ export const draftIssues = ({
         throw new Error("Incorrectly executing doNotCreateIssues step");
       }
 
-      const channelId = runtimeContext.get("channelId");
-      const threadOrMessageTs = runtimeContext.get("threadOrMessageTs");
+      const channelId = runtimeContext.get("channelId") as string; // TODO: fixme...
+      const threadOrMessageTs = runtimeContext.get("threadOrMessageTs") as string; // TODO: fixme...
 
-      await client.chat.postMessage({
-        channel: channelId as string,
-        thread_ts: threadOrMessageTs as string, // TODO: fixme...
-        text: "Conversation does not contain enough information to create an issue.",
-        icon_emoji: ":warning:",
-      });
+      await slackTryJoin(
+        () =>
+          client.chat.postEphemeral({
+            channel: channelId,
+            thread_ts: threadOrMessageTs,
+            text: "Conversation does not contain enough information to create an issue.",
+            icon_emoji: ":warning:",
+            user: user.id,
+          }),
+        client,
+        channelId,
+      );
 
       return { created: false };
     },
