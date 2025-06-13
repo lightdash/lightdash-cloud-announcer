@@ -169,6 +169,9 @@ export const findGithubIssues = ({
     inputSchema: searchQuerySchema,
     outputSchema: issuesSchema,
     execute: async ({ inputData }) => {
+      console.log("---------------------");
+
+      console.time("embedIssue");
       const embeddings = await Promise.all(
         inputData.searchQueries.map((query) =>
           embedIssue({
@@ -179,7 +182,11 @@ export const findGithubIssues = ({
           }),
         ),
       );
+      console.timeEnd("embedIssue");
 
+      console.log("---------------------");
+
+      console.time("searchGithubIssuesByEmbeddings");
       const issues = await searchGithubIssuesByEmbeddings(
         GH_OWNER,
         GH_REPO,
@@ -188,6 +195,9 @@ export const findGithubIssues = ({
         SEARCH_LIMIT,
         SEARCH_THRESHOLD,
       );
+      console.timeEnd("searchGithubIssuesByEmbeddings");
+
+      console.log("---------------------");
 
       const mappedIssues = issues.map((issue) => ({
         title: issue.title,
