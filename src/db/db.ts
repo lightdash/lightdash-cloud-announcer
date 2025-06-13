@@ -200,47 +200,36 @@ export const searchGithubIssuesByEmbeddings = async (
   limit = 3,
   threshold = 0.66,
 ) => {
-  return knex
-    .select<
-      {
-        title: string;
-        description: string;
-        issue_url: string;
-        status: string | null;
-        milestone: string | null;
-        labels: string[] | null;
-        rank: number;
-      }[]
-    >("*")
-    .from(function () {
-      // @ts-ignore does not like function and this.select...
-      // Compute the best (highest) similarity rank across all embeddings for each issue
-      // embeddings is an array of serialized embedding strings
-      // We'll use a VALUES clause to unnest the embeddings and compute the max rank
-      this.select(
-        "title",
-        "description",
-        "issue_url",
-        "status",
-        "milestone",
-        "labels",
-        knex.raw(
-          `
-          (
-            SELECT MAX(1 - (github_issues.embeddings <=> ve.embedding::vector))
-            FROM (VALUES ${embeddings.map(() => "(?)").join(", ")}) AS ve(embedding)
-          ) AS rank
-        `,
-          embeddings,
-        ),
-      )
-        .from("github_issues")
+  // Create a query for each embedding to find its nearest neighbors
+  const searchQueries = embeddings.map(
+    (embedding) =>
+      knex("github_issues")
+        .select("title", "description", "issue_url", "status", "milestone", "labels", {
+          rank: knex.raw("1 - (embeddings <=> ?::vector)", [embedding]),
+        })
         .where({ owner, repo, type })
-        .as("ranked_issues");
-    })
-    .where("rank", ">", threshold)
-    .orderBy("rank", "desc")
-    .limit(limit);
+        .andWhere(knex.raw("1 - (embeddings <=> ?::vector) > ?", [embedding, threshold]))
+        .orderByRaw("(embeddings <=> ?::vector)", [embedding])
+        .limit(limit * 2), // Fetch more results initially to have a good pool for final ranking
+  );
+
+  // Execute all search queries in parallel
+  const resultsByEmbedding = await Promise.all(searchQueries);
+
+  // Process and merge the results in your application
+  const allIssues = resultsByEmbedding.flat();
+
+  const uniqueIssues = new Map<string, (typeof allIssues)[0]>();
+  for (const issue of allIssues) {
+    const existingIssue = uniqueIssues.get(issue.issue_url);
+    if (!existingIssue || issue.rank > existingIssue.rank) {
+      uniqueIssues.set(issue.issue_url, issue);
+    }
+  }
+
+  const sortedIssues = Array.from(uniqueIssues.values()).sort((a, b) => b.rank - a.rank);
+
+  return sortedIssues.slice(0, limit);
 };
 
 export const updateGithubIssueStatus = async (
