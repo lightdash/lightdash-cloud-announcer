@@ -223,15 +223,21 @@ export const draftIssues = ({
       const threadOrMessageTs = runtimeContext.get("threadOrMessageTs") as string; // TODO: fixme...
 
       await slackTryJoin(
-        () =>
-          client.chat.postEphemeral({
-            channel: channelId,
-            thread_ts: threadOrMessageTs,
-            text: "GitHub issue specs generated from the conversation:",
-            blocks,
-            icon_emoji: ":writing_hand:",
-            user: user.id,
-          }),
+        async () => {
+          try {
+            await client.chat.postEphemeral({
+              channel: channelId,
+              thread_ts: threadOrMessageTs,
+              text: "GitHub issue specs generated from the conversation:",
+              blocks,
+              icon_emoji: ":writing_hand:",
+              user: user.id,
+            });
+          } catch (error) {
+            console.error("Error posting issues to Slack", error);
+            console.dir(blocks, { depth: null });
+          }
+        },
         client,
         channelId,
       );
