@@ -178,24 +178,18 @@ export const draftIssues = ({
           },
         });
 
+        let description = `*Description:* ${issue.description}`;
+        if (issue.labels.length > 0) {
+          description += `\n\n*Labels:* ${issue.labels.map((label) => `\`${label}\``).join(", ")}`;
+        }
+
         acc.push({
           type: "section",
           text: {
             type: "mrkdwn",
-            text: issue.description,
+            text: description,
           },
         });
-
-        // Add labels block if there are labels
-        if (issue.labels.length > 0) {
-          acc.push({
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: `*Labels:* ${issue.labels.map((label) => `\`${label}\``).join(", ")}`,
-            },
-          });
-        }
 
         acc.push({
           type: "actions",
